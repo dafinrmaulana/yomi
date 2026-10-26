@@ -23,7 +23,7 @@ export default function Hub() {
   const today = dayKey()
   const due = Object.values(progress.srs).filter((c) => c.due <= today).length
 
-  // urutan: fitur yang paling sering dipakai di depan, papan misi di ujung
+  // urutan: fitur yang paling sering dipakai di depan, papan misi setelah tulis
   const items: Item[] = [
     {
       to: '/practice',
@@ -43,18 +43,18 @@ export default function Hub() {
       rot: 1.2,
       featured: true,
     },
+    { to: '/missions', title: 'Papan Misi', desc: 'Misi bertahap dengan nyawa dan bintang. Hafalkan hiragana dan katakana dari awal.', glyph: '読', rot: -1.4 },
     {
       to: '/review',
       title: 'Ulangan Harian',
       desc: 'Ulangi huruf yang hampir terlupa dengan jarak waktu yang pas.',
       glyph: '習',
       note: due ? `${due} huruf menunggu` : 'Tidak ada yang menunggu',
-      rot: -1,
+      rot: 1,
     },
-    { to: '/stats', title: 'Statistik', desc: 'Kalender latihan, peta penguasaan huruf, pangkat, dan lencana.', glyph: '記', rot: 1.4 },
-    { title: 'Kosakata', desc: 'Belajar kata-kata sehari-hari dengan huruf yang sudah kamu kuasai.', glyph: '語', rot: -1.3 },
-    { title: 'Kanji Dasar', desc: 'Kanji level pemula lengkap dengan urutan goresannya.', glyph: '漢', rot: 0.9 },
-    { to: '/missions', title: 'Papan Misi', desc: 'Misi bertahap dengan nyawa dan bintang. Hafalkan hiragana dan katakana dari awal.', glyph: '読', rot: -1.4 },
+    { to: '/stats', title: 'Statistik', desc: 'Kalender latihan, peta penguasaan huruf, pangkat, dan lencana.', glyph: '記', rot: -1.1 },
+    { title: 'Kosakata', desc: 'Belajar kata-kata sehari-hari dengan huruf yang sudah kamu kuasai.', glyph: '語', rot: 1.3 },
+    { title: 'Kanji Dasar', desc: 'Kanji level pemula lengkap dengan urutan goresannya.', glyph: '漢', rot: -0.9 },
   ]
 
   return (
