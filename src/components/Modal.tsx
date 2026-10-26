@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 interface ModalProps {
   open: boolean
@@ -6,11 +6,38 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  /** lebar dialog di desktop */
+  wide?: boolean
 }
 
 /** dialog di desktop, bottom sheet di mobile */
-export function Modal({ open, title, onClose, children, footer }: ModalProps) {
+/** lama animasi keluar (ms); harus sama dengan durasi di index.css */
+const EXIT_MS = 220
+
+export function Modal(props: ModalProps) {
+  const { open, onClose } = props
   const panel = useRef<HTMLDivElement>(null)
+  const [mounted, setMounted] = useState(open)
+  const [closing, setClosing] = useState(false)
+  // isi terakhir disimpan supaya panel tidak kosong saat meluncur keluar
+  const last = useRef(props)
+  if (open) last.current = props
+  const { title, children, footer, wide = false } = open ? props : last.current
+
+  // tetap terpasang selama animasi keluar, lalu dilepas
+  useEffect(() => {
+    if (open) {
+      setMounted(true)
+      setClosing(false)
+      return
+    }
+    setClosing(true)
+    const t = window.setTimeout(() => {
+      setMounted(false)
+      setClosing(false)
+    }, EXIT_MS)
+    return () => clearTimeout(t)
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -32,18 +59,27 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
     }
   }, [open, onClose])
 
-  if (!open) return null
+  if (!mounted) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="presentation">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-[2px]" style={{ animation: 'fade 0.2s ease-out' }} onClick={onClose} />
+    <div
+      className={`fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4 ${closing ? 'pointer-events-none' : ''}`}
+      role="presentation"
+    >
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
+        style={{ animation: `${closing ? 'fade-out' : 'fade'} ${closing ? EXIT_MS : 200}ms ease-out forwards` }}
+        onClick={onClose}
+      />
       <div
         ref={panel}
         role="dialog"
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="animate-rise relative w-full rounded-t-2xl border border-[#4d3727] bg-[#17100c] px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_40px_rgba(0,0,0,0.6)] outline-none sm:max-w-md sm:animate-pop sm:rounded-lg sm:pb-6 sm:pt-6"
+        className={`relative w-full rounded-t-2xl border border-[#4d3727] bg-[#17100c] px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-12px_40px_rgba(0,0,0,0.6)] outline-none sm:rounded-lg sm:pb-6 sm:pt-6 ${
+          closing ? 'animate-sink sm:animate-pop-out' : 'animate-rise sm:animate-pop'
+        } ${wide ? 'sm:max-w-2xl' : 'sm:max-w-md'}`}
       >
         <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#4d3727] sm:hidden" aria-hidden />
         <h2 className="font-display text-xl font-extrabold">{title}</h2>

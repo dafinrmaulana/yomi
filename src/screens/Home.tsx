@@ -1,26 +1,26 @@
 import { useState } from 'react'
 import Petals from '../components/Petals'
+import AppHeader from '../components/AppHeader'
 import Sharingan from '../components/Sharingan'
 import Torii from '../components/Torii'
 import { KANA_BY_ID, KIND_LABEL, SCRIPT_LABEL, type Script } from '../lib/kana'
 import { isUnlocked, nodesFor, type PathNode } from '../lib/path'
 import MissionNote from '../components/MissionNote'
 import { ConfirmDialog } from '../components/Modal'
+import { Link } from '../lib/router'
 import { DAILY_GOAL, type Progress } from '../lib/storage'
 
 interface Props {
   progress: Progress
-  streak: number
   todayXp: number
   onLesson: (n: PathNode) => void
   onFree: () => void
-  onToggleMute: () => void
   onReset: () => void
 }
 
 const KINDS = ['dasar', 'dakuten', 'yoon'] as const
 
-export default function Home({ progress, streak, todayXp, onLesson, onFree, onToggleMute, onReset }: Props) {
+export default function Home({ progress, todayXp, onLesson, onFree, onReset }: Props) {
   const [script, setScript] = useState<Script>('hiragana')
   const [askReset, setAskReset] = useState(false)
   const nodes = nodesFor(script)
@@ -39,36 +39,14 @@ export default function Home({ progress, streak, todayXp, onLesson, onFree, onTo
     <div className="bg-seigaiha relative min-h-dvh">
       <Petals />
 
-      <header className="sticky top-0 z-30 border-b border-edge bg-ink/85 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            <Sharingan level={3} size={34} />
-            <span className="text-xl font-black tracking-wide">Yomi</span>
-            <span className="font-jp text-sm text-mute">読み</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm font-extrabold">
-            <span className="flex items-center gap-1.5 rounded-xl bg-panel px-3 py-1.5" title="Streak harian">
-              <span className={streak ? '' : 'grayscale'}>🔥</span>
-              <span className={streak ? 'text-gold' : 'text-mute'}>{streak}</span>
-            </span>
-            <span className="rounded-xl bg-panel px-3 py-1.5 text-sharin-glow" title="Total XP">
-              {progress.xp} <span className="text-xs text-mute">XP</span>
-            </span>
-            <button
-              onClick={onToggleMute}
-              className="grid size-9 cursor-pointer place-items-center rounded-xl bg-panel text-mute transition hover:text-bone"
-              title={progress.mute ? 'Suara mati' : 'Suara menyala'}
-              aria-label="Suara"
-            >
-              {progress.mute ? '🔇' : '🔊'}
-            </button>
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
       <main className="relative z-10 mx-auto grid max-w-5xl gap-8 px-4 pb-24 pt-6 lg:grid-cols-[1fr_340px]">
         {/* papan misi */}
         <section className="order-2 lg:order-1">
+          <Link to="/" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-[#b9a782] transition hover:text-bone">
+            ← Menu utama
+          </Link>
           <div className="plank relative mb-5 overflow-hidden rounded-xl px-6 py-5">
             <Torii className="absolute -right-3 bottom-0 h-24 text-black/25" />
             <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-sharin-glow">Papan Misi</p>

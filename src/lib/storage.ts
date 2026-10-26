@@ -11,9 +11,28 @@ export interface FreeSettings {
   answer: AnswerMode
 }
 
+export interface DayStat {
+  xp: number
+  ok: number
+  bad: number
+}
+
+/** kartu ulangan berjarak (Leitner sederhana) per huruf */
+export interface SrsCard {
+  box: number
+  due: string
+}
+
 export interface Progress {
   xp: number
   dayStreak: number
+  bestStreak: number
+  bestCombo: number
+  reviewSessions: number
+  days: Record<string, DayStat>
+  srs: Record<string, SrsCard>
+  /** kode heksadesimal huruf yang sudah ditulis dengan benar di Latihan Menulis */
+  written: string[]
   lastDay: string
   todayDate: string
   todayXp: number
@@ -28,8 +47,19 @@ export interface Progress {
 export const DAILY_GOAL = 50
 const KEY = 'yomi:v1'
 
-const dayKey = (d = new Date()) =>
+export const dayKey = (d = new Date()) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+/** jarak ulangan (hari) menurut kotak: 0 = hari ini */
+/** XP untuk menulis satu huruf dengan benar (sekali per huruf) */
+export const WRITE_XP = 5
+
+export const SRS_DAYS = [0, 1, 3, 7, 14, 30]
+
+export const addDays = (key: string, n: number) => {
+  const [y, m, d] = key.split('-').map(Number)
+  return dayKey(new Date(y, m - 1, d + n))
+}
 
 const yesterdayKey = () => {
   const d = new Date()
@@ -40,6 +70,12 @@ const yesterdayKey = () => {
 const defaults = (): Progress => ({
   xp: 0,
   dayStreak: 0,
+  bestStreak: 0,
+  bestCombo: 0,
+  reviewSessions: 0,
+  days: {},
+  srs: {},
+  written: [],
   lastDay: '',
   todayDate: dayKey(),
   todayXp: 0,
@@ -67,6 +103,8 @@ function load(): Progress {
 }
 
 export interface SessionResult {
+  kind: 'path' | 'free' | 'review'
+  maxCombo: number
   xp: number
   correct: number
   wrong: number
@@ -99,6 +137,20 @@ export function useProgress() {
         next.dayStreak = next.lastDay === yesterdayKey() ? next.dayStreak + 1 : 1
         next.lastDay = today
       }
+      next.bestStreak = Math.max(next.bestStreak, next.dayStreak)
+      next.bestCombo = Math.max(next.bestCombo, res.maxCombo)
+      if (res.kind === 'review' && res.correct + res.wrong > 0) next.reviewSessions += 1
+      const day = next.days[today] ?? { xp: 0, ok: 0, bad: 0 }
+      next.days = { ...next.days, [today]: { xp: day.xp + res.xp, ok: day.ok + res.correct, bad: day.bad + res.wrong } }
+      next.srs = { ...next.srs }
+      for (const [id, st] of Object.entries(res.stats)) {
+        const card = next.srs[id] ?? { box: 0, due: today }
+        if (st.w > 0) next.srs[id] = { box: 0, due: today }
+        else if (st.r > 0) {
+          const box = Math.min(card.box + 1, SRS_DAYS.length - 1)
+          next.srs[id] = { box, due: addDays(today, SRS_DAYS[box]) }
+        }
+      }
       next.xp += res.xp
       next.todayXp += res.xp
       next.totalCorrect += res.correct
@@ -118,10 +170,32 @@ export function useProgress() {
 
   const reset = useCallback(() => setProgress(defaults()), [])
 
+  const markWritten = useCallback((code: string) => {
+    setProgress((cur) => {
+      if (cur.written.includes(code)) return cur
+      const today = dayKey()
+      const day = cur.days[today] ?? { xp: 0, ok: 0, bad: 0 }
+      const next: Progress = {
+        ...cur,
+        written: [...cur.written, code],
+        xp: cur.xp + WRITE_XP,
+        todayDate: today,
+        todayXp: (cur.todayDate === today ? cur.todayXp : 0) + WRITE_XP,
+        days: { ...cur.days, [today]: { ...day, xp: day.xp + WRITE_XP } },
+      }
+      if (cur.lastDay !== today) {
+        next.dayStreak = cur.lastDay === yesterdayKey() ? cur.dayStreak + 1 : 1
+        next.lastDay = today
+        next.bestStreak = Math.max(next.bestStreak, next.dayStreak)
+      }
+      return next
+    })
+  }, [])
+
   /** streak yang masih berlaku (hangus jika kemarin terlewat) */
   const liveStreak =
     progress.lastDay === dayKey() || progress.lastDay === yesterdayKey() ? progress.dayStreak : 0
   const todayXp = progress.todayDate === dayKey() ? progress.todayXp : 0
 
-  return { progress, patch, record, reset, liveStreak, todayXp }
+  return { progress, patch, record, reset, markWritten, liveStreak, todayXp }
 }

@@ -2,7 +2,7 @@ import { ALL_KANA, type Kana } from './kana'
 import type { AnswerMode, QuizMode } from './storage'
 
 export interface QuizConfig {
-  kind: 'path' | 'free'
+  kind: 'path' | 'free' | 'review'
   title: string
   pool: Kana[]
   /** huruf dari pelajaran sebelumnya yang disisipkan sebagai pengulangan */

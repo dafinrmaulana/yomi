@@ -8,18 +8,18 @@ interface Props {
   result: QuizResult
   bonusXp: number
   onRetry: () => void
-  onHome: () => void
+  onBack: () => void
 }
 
 const fmtTime = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`)
 
-export default function Summary({ result, bonusXp, onRetry, onHome }: Props) {
+export default function Summary({ result, bonusXp, onRetry, onBack }: Props) {
   const { correct, wrong, failed, config } = result
   const total = correct + wrong
   const acc = total ? Math.round((correct / total) * 100) : 0
   const celebrate = !failed && acc >= 50
 
-  const title = failed ? 'Chakra habis…' : config.kind === 'path' ? 'Pelajaran selesai!' : 'Sesi selesai!'
+  const title = failed ? 'Chakra habis…' : config.kind === 'path' ? 'Pelajaran selesai!' : config.kind === 'review' ? 'Ulangan selesai!' : 'Sesi selesai!'
   const sub = failed
     ? 'Nyawamu habis. Ulangi dan perhatikan huruf yang tertukar.'
     : acc >= 90
@@ -94,11 +94,11 @@ export default function Summary({ result, bonusXp, onRetry, onHome }: Props) {
         )}
 
         <div className="mt-8 flex gap-3">
-          <button className="btn btn-ghost flex-1" onClick={onHome}>
-            Beranda
+          <button className="btn btn-ghost flex-1" onClick={onBack}>
+            Kembali
           </button>
           <button className="btn btn-red flex-1" onClick={onRetry}>
-            {config.kind === 'free' ? 'Latihan lagi' : failed ? 'Coba lagi' : 'Ulangi'}
+            {config.kind === 'path' ? (failed ? 'Coba lagi' : 'Ulangi') : 'Latihan lagi'}
           </button>
         </div>
       </div>
