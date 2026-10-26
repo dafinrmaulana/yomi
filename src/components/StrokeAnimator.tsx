@@ -106,7 +106,7 @@ export default function StrokeAnimator({ data }: { data: StrokeData }) {
 }
 
 /** gambar satu langkah (goresan terbaru merah, bernomor); sisa goresan tampil redup sebagai petunjuk */
-function StepSvg({ data, i, ghost = false, className = '' }: { data: StrokeData; i: number; ghost?: boolean; className?: string }) {
+export function StepSvg({ data, i, ghost = false, className = '' }: { data: StrokeData; i: number; ghost?: boolean; className?: string }) {
   const big = ghost // versi besar memakai garis dan nomor yang lebih proporsional
   return (
     <svg viewBox="0 0 109 109" className={`aspect-square w-full rounded bg-[#120c09] ${className}`} aria-hidden>
@@ -135,11 +135,11 @@ function StepSvg({ data, i, ghost = false, className = '' }: { data: StrokeData;
 }
 
 /** deretan langkah: huruf terbentuk goresan demi goresan. Jika onPick ada, tiap gambar bisa diketuk untuk diperbesar. */
-export function StrokeSteps({ data, onPick }: { data: StrokeData; onPick?: (i: number) => void }) {
+export function StrokeSteps({ data, onPick, itemClass = 'max-w-[96px]' }: { data: StrokeData; onPick?: (i: number) => void; itemClass?: string }) {
   return (
     <ol className="flex gap-1.5">
       {data.s.map((_, i) => (
-        <li key={i} className="min-w-0 max-w-[96px] flex-1">
+        <li key={i} className={`min-w-0 flex-1 ${itemClass}`}>
           {onPick ? (
             <button
               type="button"

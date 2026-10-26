@@ -10,6 +10,7 @@ interface Router {
 const Ctx = createContext<Router>(null as unknown as Router)
 
 const clean = (p: string) => (p.length > 1 ? p.replace(/\/+$/, '') : p)
+const pathOf = (to: string) => clean(to.split(/[?#]/)[0])
 
 export function RouterProvider({ children }: { children: ReactNode }) {
   const [path, setPath] = useState(() => clean(location.pathname))
@@ -26,10 +27,10 @@ export function RouterProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const navigate = useCallback((to: string, opts?: { replace?: boolean }) => {
-    if (clean(to) === clean(location.pathname)) return
+    if (to === location.pathname + location.search) return
     if (opts?.replace) history.replaceState({ idx: idx.current }, '', to)
     else history.pushState({ idx: ++idx.current }, '', to)
-    setPath(clean(to))
+    setPath(pathOf(to))
     window.scrollTo(0, 0)
   }, [])
 

@@ -23,29 +23,38 @@ export default function Hub() {
   const today = dayKey()
   const due = Object.values(progress.srs).filter((c) => c.due <= today).length
 
+  // urutan: fitur yang paling sering dipakai di depan, papan misi di ujung
   const items: Item[] = [
-    { to: '/missions', title: 'Papan Misi', desc: 'Misi bertahap dengan nyawa dan bintang. Hafalkan hiragana dan katakana dari awal.', glyph: '読', rot: -1.4 },
     {
       to: '/practice',
       title: 'Latihan Bebas',
       desc: 'Pilih sendiri hurufnya, per huruf atau gabungan acak, lalu berlatih tanpa henti sampai puas.',
       glyph: '練',
       note: 'Tanpa batas',
-      rot: 1.1,
+      rot: -1.2,
       featured: true,
     },
-    { to: '/write', title: 'Tulis', desc: 'Urutan goresan dengan animasi, plus kanvas untuk berlatih.', glyph: '書', rot: -1.2 },
+    {
+      to: '/write',
+      title: 'Tulis',
+      desc: 'Semua huruf dengan urutan goresan langkah demi langkah, plus latihan menulis yang diperiksa.',
+      glyph: '書',
+      note: 'Hiragana & katakana',
+      rot: 1.2,
+      featured: true,
+    },
     {
       to: '/review',
       title: 'Ulangan Harian',
       desc: 'Ulangi huruf yang hampir terlupa dengan jarak waktu yang pas.',
       glyph: '習',
       note: due ? `${due} huruf menunggu` : 'Tidak ada yang menunggu',
-      rot: 1,
+      rot: -1,
     },
     { to: '/stats', title: 'Statistik', desc: 'Kalender latihan, peta penguasaan huruf, pangkat, dan lencana.', glyph: '記', rot: 1.4 },
-    { title: 'Kosakata', desc: 'Belajar kata-kata sehari-hari dengan huruf yang sudah kamu kuasai.', glyph: '語', rot: 1.3 },
-    { title: 'Kanji Dasar', desc: 'Kanji level pemula lengkap dengan urutan goresannya.', glyph: '漢', rot: -0.9 },
+    { title: 'Kosakata', desc: 'Belajar kata-kata sehari-hari dengan huruf yang sudah kamu kuasai.', glyph: '語', rot: -1.3 },
+    { title: 'Kanji Dasar', desc: 'Kanji level pemula lengkap dengan urutan goresannya.', glyph: '漢', rot: 0.9 },
+    { to: '/missions', title: 'Papan Misi', desc: 'Misi bertahap dengan nyawa dan bintang. Hafalkan hiragana dan katakana dari awal.', glyph: '読', rot: -1.4 },
   ]
 
   return (
@@ -93,7 +102,7 @@ export default function Hub() {
                   {!it.to && <span className="stamp !top-3 !text-base">SEGERA</span>}
                 </>
               )
-              const cls = `note relative block overflow-hidden p-5 pt-7 ${it.to ? '' : 'note-locked'} ${it.featured ? 'ring-2 ring-[#b3202f]/70' : ''}`
+              const cls = `note relative block overflow-hidden p-5 pt-7 ${it.to ? '' : 'note-locked'} ${it.featured ? 'outline outline-2 outline-offset-0 outline-[#b3202f]/80' : ''}`
               const style = { ['--rot' as string]: `${it.rot}deg` }
               return (
                 <div key={it.title} className="note-wrap">

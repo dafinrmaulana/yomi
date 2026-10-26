@@ -1,3 +1,4 @@
+import { Eye, EyeOff } from 'lucide-react'
 import { useRef, useState, type PointerEvent } from 'react'
 import { checkStrokes, cleanStrokes, type CheckResult, type Pt, type StrokeStatus } from '../lib/strokeCheck'
 import type { StrokeData } from '../lib/strokes'
@@ -102,24 +103,34 @@ export default function DrawPad({ data, onPass, done, xp }: Props) {
         ))}
       </svg>
 
-      <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+      <div className="mx-auto mt-4 grid max-w-sm grid-cols-3 gap-2 sm:grid-cols-4">
         {locked ? (
-          <button className="btn btn-red btn-sm" onClick={reset}>
+          <button className="btn btn-red btn-sm col-span-3 w-full sm:order-first sm:col-span-1" onClick={reset}>
             Coba lagi
           </button>
         ) : (
-          <button className="btn btn-red btn-sm" disabled={!strokes.length} onClick={check}>
+          <button className="btn btn-red btn-sm col-span-3 w-full sm:order-first sm:col-span-1" disabled={!strokes.length} onClick={check}>
             Periksa
           </button>
         )}
-        <button className="btn btn-ghost btn-sm" disabled={locked || !strokes.length} onClick={() => setStrokes((s) => s.slice(0, -1))}>
+        <button
+          className="btn btn-ghost btn-sm w-full whitespace-nowrap !px-2"
+          disabled={locked || !strokes.length}
+          onClick={() => setStrokes((s) => s.slice(0, -1))}
+        >
           Urungkan
         </button>
-        <button className="btn btn-ghost btn-sm" disabled={!strokes.length && !locked} onClick={reset}>
+        <button className="btn btn-ghost btn-sm w-full whitespace-nowrap !px-2" disabled={!strokes.length && !locked} onClick={reset}>
           Hapus
         </button>
-        <button className="btn btn-ghost btn-sm" aria-pressed={ghost} onClick={() => setGhost((g) => !g)}>
-          Bayangan: {ghost ? 'nyala' : 'mati'}
+        <button
+          className="btn btn-ghost btn-sm w-full whitespace-nowrap !px-2"
+          aria-pressed={ghost}
+          aria-label={ghost ? 'Sembunyikan bayangan' : 'Tampilkan bayangan'}
+          onClick={() => setGhost((g) => !g)}
+        >
+          {ghost ? <Eye size={15} aria-hidden /> : <EyeOff size={15} aria-hidden />}
+          Bayangan
         </button>
       </div>
 

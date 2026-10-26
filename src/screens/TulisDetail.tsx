@@ -8,7 +8,7 @@ import { SCRIPT_LABEL } from '../lib/kana'
 import { Link } from '../lib/router'
 import { WRITE_XP } from '../lib/storage'
 import { useStrokes } from '../lib/strokes'
-import { allWriteChars, findWriteChar, NOTES, SMALL_NOTE } from '../lib/tulis'
+import { findWriteChar, NOTES, resolveSet, SMALL_NOTE } from '../lib/tulis'
 
 /** halaman latihan menulis satu huruf */
 export default function TulisDetail({ hex }: { hex: string }) {
@@ -26,10 +26,13 @@ export default function TulisDetail({ hex }: { hex: string }) {
     )
   }
 
-  const list = allWriteChars(ch.script)
+  // latihan berurutan: seluruh skrip, atau hanya satu baris, sesuai ?set=
+  const set = new URLSearchParams(location.search).get('set')
+  const { label: setLabel, chars: list } = resolveSet(ch, set)
   const i = list.findIndex((c) => c.code === ch.code)
   const prev = list[i - 1]
   const next = list[i + 1]
+  const qs = set ? `?set=${set}` : ''
   const note = NOTES[ch.char] ?? (ch.romaji.includes('kecil') ? SMALL_NOTE : null)
   const done = progress.written.includes(ch.code)
 
@@ -68,19 +71,28 @@ export default function TulisDetail({ hex }: { hex: string }) {
         </div>
       )}
 
-      <nav className="mt-12 flex items-center justify-between gap-3 border-t border-[#3a2a20] pt-6">
-        {prev ? (
-          <Link to={`/write/${prev.code}`} className="btn btn-ghost btn-sm">
-            ‹ {prev.char} {prev.romaji}
-          </Link>
-        ) : (
-          <span />
-        )}
-        {next && (
-          <Link to={`/write/${next.code}`} className="btn btn-ghost btn-sm">
-            {next.char} {next.romaji} ›
-          </Link>
-        )}
+      <nav className="mt-12 border-t border-[#3a2a20] pt-6">
+        <p className="mb-3 text-center text-sm text-[#b9a782]">
+          {setLabel} · huruf {i + 1} dari {list.length}
+        </p>
+        <div className="flex items-center justify-between gap-3">
+          {prev ? (
+            <Link to={`/write/${prev.code}${qs}`} className="btn btn-ghost btn-sm">
+              ‹ {prev.char} {prev.romaji}
+            </Link>
+          ) : (
+            <span />
+          )}
+          {next ? (
+            <Link to={`/write/${next.code}${qs}`} className="btn btn-ghost btn-sm">
+              {next.char} {next.romaji} ›
+            </Link>
+          ) : (
+            <Link to="/write" className="btn btn-red btn-sm">
+              Selesai
+            </Link>
+          )}
+        </div>
       </nav>
 
       <Modal

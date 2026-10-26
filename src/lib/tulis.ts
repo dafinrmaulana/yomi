@@ -1,4 +1,4 @@
-import { GROUPS, type Script } from './kana'
+import { GROUPS, SCRIPT_LABEL, type Script } from './kana'
 
 export interface WriteChar {
   char: string
@@ -84,3 +84,27 @@ export const NOTES: Record<string, string> = {
 
 export const SMALL_NOTE =
   'Huruf kecil ditulis sama seperti hurufnya yang besar, hanya ukurannya sekitar setengah dan diletakkan di bagian bawah-kanan kotak.'
+
+/**
+ * Himpunan huruf untuk latihan berurutan:
+ *  - `all-hiragana` / `all-katakana`: semua huruf skrip itu
+ *  - `row-<skrip>-<id baris>`: satu baris (a, ka, sa, ...)
+ */
+export function resolveSet(ch: WriteChar, set: string | null): { label: string; chars: WriteChar[] } {
+  const has = (cs: WriteChar[]) => cs.some((c) => c.code === ch.code)
+  if (set?.startsWith('all-')) {
+    const s = set.slice(4) as Script
+    if (s === 'hiragana' || s === 'katakana') {
+      const chars = allWriteChars(s)
+      if (has(chars)) return { label: `Semua ${SCRIPT_LABEL[s]}`, chars }
+    }
+  }
+  if (set?.startsWith('row-')) {
+    const [, s, id] = set.split('-')
+    if (s === 'hiragana' || s === 'katakana') {
+      const row = writeSections(s).flatMap((sec) => sec.rows).find((r) => r.id === id)
+      if (row && has(row.chars)) return { label: row.title, chars: row.chars }
+    }
+  }
+  return { label: SCRIPT_LABEL[ch.script], chars: allWriteChars(ch.script) }
+}

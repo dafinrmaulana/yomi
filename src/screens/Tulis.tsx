@@ -6,29 +6,34 @@ import StrokeAnimator, { StepsGrid, StrokeSteps } from '../components/StrokeAnim
 import { SCRIPT_LABEL, type Script } from '../lib/kana'
 import { Link } from '../lib/router'
 import { useStrokes, type StrokeData } from '../lib/strokes'
-import { writeSections, type WriteChar } from '../lib/tulis'
+import { allWriteChars, writeSections, type WriteChar, type WriteRow } from '../lib/tulis'
 
 const SCRIPTS: Script[] = ['hiragana', 'katakana']
 
-function CharCard({ c, data, onSteps, onAnimate }: { c: WriteChar; data?: StrokeData; onSteps: (step: number) => void; onAnimate: () => void }) {
+/** satu huruf = satu baris: identitas di kiri, langkah di tengah, tombol di kanan (padat supaya satu baris konsonan muat di layar) */
+function CharCard({ c, data, practiceTo, onSteps, onAnimate }: { c: WriteChar; data?: StrokeData; practiceTo: string; onSteps: (step: number) => void; onAnimate: () => void }) {
   return (
-    <article className="rounded-lg border border-[#3a2a20] bg-[#15100c]/90 p-3">
-      <header className="mb-2.5 flex items-baseline justify-between gap-2">
-        <div className="flex items-baseline gap-2.5">
-          <span className="font-jp text-3xl font-bold leading-none">{c.char}</span>
-          <span className="text-sm font-semibold text-[#cdb88f]">{c.romaji}</span>
+    <article className="rounded-lg border border-[#3a2a20] bg-[#15100c]/90 p-3 md:flex md:items-center md:gap-5">
+      <header className="mb-3 flex items-baseline justify-between gap-3 md:mb-0 md:block md:w-28 md:shrink-0">
+        <div className="flex items-baseline gap-3 md:block">
+          <span className="font-jp block text-5xl font-bold leading-none">{c.char}</span>
+          <span className="text-base font-bold text-[#cdb88f] md:mt-1.5 md:block">{c.romaji}</span>
         </div>
-        {data && <span className="text-xs text-[#8f7f66]">{data.s.length} goresan</span>}
+        {data && <span className="text-xs text-[#8f7f66] md:block">{data.s.length} goresan</span>}
       </header>
-      {data ? <StrokeSteps data={data} onPick={onSteps} /> : <div className="aspect-[5/1] rounded bg-[#120c09]" />}
-      <div className="mt-3 flex gap-2">
-        <button className="pill" onClick={() => onSteps(0)} disabled={!data}>
+
+      <div className="min-w-0 flex-1">
+        {data ? <StrokeSteps data={data} onPick={onSteps} itemClass="max-w-[88px]" /> : <div className="aspect-[5/1] rounded bg-[#120c09]" />}
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-2 md:mt-0 md:flex md:shrink-0">
+        <button className="pill md:!flex-none md:px-4" onClick={() => onSteps(0)} disabled={!data}>
           Langkah
         </button>
-        <button className="pill" onClick={onAnimate} disabled={!data}>
+        <button className="pill md:!flex-none md:px-4" onClick={onAnimate} disabled={!data}>
           Animasi
         </button>
-        <Link to={`/write/${c.code}`} className="pill pill-accent">
+        <Link to={practiceTo} className="pill pill-accent md:!flex-none md:px-4">
           Latihan
         </Link>
       </div>
@@ -58,11 +63,15 @@ export default function Tulis() {
   const shown = SCRIPTS.map((script) => ({
     script,
     sections: writeSections(script)
-      .map((sec) => ({ ...sec, chars: sec.rows.flatMap((r) => r.chars).filter(match) }))
-      .filter((sec) => sec.chars.length > 0),
+      .map((sec) => ({
+        ...sec,
+        rows: sec.rows.map((r) => ({ ...r, chars: r.chars.filter(match) })).filter((r) => r.chars.length > 0),
+      }))
+      .filter((sec) => sec.rows.length > 0),
   }))
   const has = (s: Script) => shown.find((x) => x.script === s)!.sections.length > 0
-  const total = shown.reduce((n, x) => n + x.sections.reduce((m, sec) => m + sec.chars.length, 0), 0)
+  const total = shown.reduce((n, x) => n + x.sections.reduce((m, sec) => m + sec.rows.reduce((k, r) => k + r.chars.length, 0), 0), 0)
+  const rowSet = (script: Script, row: WriteRow) => `?set=row-${script}-${row.id}`
 
   // tab aktif mengikuti bagian yang terlihat. Saat tab diklik langsung aktif, dan scrollspy dikunci
   // sampai scroll halusnya benar-benar berhenti (tidak ada event scroll selama 150 md), supaya tidak berkedip.
@@ -175,30 +184,62 @@ export default function Tulis() {
 
       {shown
         .filter((x) => x.sections.length > 0)
-        .map(({ script, sections }, idx, arr) => (
-          <section key={script} id={script} className="scroll-mt-36">
-            <h2 className="font-display mb-6 text-3xl font-extrabold">{SCRIPT_LABEL[script]}</h2>
-            <div className="space-y-10">
-              {sections.map((sec) => (
-                <div key={sec.kind}>
-                  <h3 className="font-display mb-3 text-sm font-extrabold uppercase tracking-[0.18em] text-[#cdb88f]">{sec.title}</h3>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {sec.chars.map((c) => (
-                      <CharCard
-                        key={c.code}
-                        c={c}
-                        data={strokes?.[c.char]}
-                        onSteps={(step) => setView({ c, mode: 'steps', step })}
-                        onAnimate={() => setView({ c, mode: 'anim', step: 0 })}
-                      />
-                    ))}
-                  </div>
+        .map(({ script, sections }) => {
+          const all = allWriteChars(script)
+          return (
+            <section key={script} id={script} className="scroll-mt-36">
+              <h2 className="font-display mb-2 text-4xl font-extrabold">{SCRIPT_LABEL[script]}</h2>
+              <p className="mb-8 max-w-xl text-sm text-[#b9a782]">Titik merah menandai awal tiap goresan. Ketuk Langkah untuk melihatnya lebih besar.</p>
+
+              {sections.map((sec) =>
+                sec.rows.map((row, ri) => (
+                  <section
+                    key={`${sec.kind}-${row.id}`}
+                    className="mb-8 flex flex-col justify-center border-t border-[#3a2a20] pb-2 pt-6 md:min-h-[calc(100dvh-190px)]"
+                  >
+                    <header className="mb-4">
+                      {ri === 0 && <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-sharin-glow">{sec.title}</p>}
+                      <h3 className="font-display mt-1 text-3xl font-extrabold">{row.title}</h3>
+                      <p className="mt-0.5 text-sm text-[#b9a782]">{row.chars.map((c) => c.romaji).join(' · ')}</p>
+                    </header>
+
+                    <div className="space-y-3">
+                      {row.chars.map((c) => (
+                        <CharCard
+                          key={c.code}
+                          c={c}
+                          data={strokes?.[c.char]}
+                          practiceTo={`/write/${c.code}${rowSet(script, row)}`}
+                          onSteps={(step) => setView({ c, mode: 'steps', step })}
+                          onAnimate={() => setView({ c, mode: 'anim', step: 0 })}
+                        />
+                      ))}
+                    </div>
+
+                    <footer className="mt-4 flex md:justify-end">
+                      <Link
+                        to={`/write/${row.chars[0].code}${rowSet(script, row)}`}
+                        className="btn btn-ghost w-full md:w-auto"
+                      >
+                        Latihan baris ini · {row.chars.length} huruf
+                      </Link>
+                    </footer>
+                  </section>
+                )),
+              )}
+
+              {!q && (
+                <div className="mb-16 mt-6 rounded-xl border border-[#4d3727] bg-[#15100c]/80 p-6 text-center">
+                  <p className="font-display text-xl font-extrabold">Sudah hafal semua?</p>
+                  <p className="mx-auto mt-1 max-w-sm text-sm text-[#b9a782]">Tulis semua {SCRIPT_LABEL[script]} berurutan, satu per satu.</p>
+                  <Link to={`/write/${all[0].code}?set=all-${script}`} className="btn btn-red mt-4">
+                    Latihan semua {SCRIPT_LABEL[script]} · {all.length} huruf
+                  </Link>
                 </div>
-              ))}
-            </div>
-            {idx < arr.length - 1 && <div className="my-14 h-px bg-[#3a2a20]" />}
-          </section>
-        ))}
+              )}
+            </section>
+          )
+        })}
 
       <p className="mt-14 text-xs leading-relaxed text-[#8f7f66]">
         Data urutan goresan berasal dari{' '}
