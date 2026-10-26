@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import Petals from '../components/Petals'
 import { GROUPS, KIND_LABEL, SCRIPT_LABEL, groupTitle, type Kana, type Script } from '../lib/kana'
-import type { AnswerMode, FreeSettings } from '../lib/storage'
+import type { AnswerMode, Direction, FreeSettings } from '../lib/storage'
 
 interface Props {
   settings: FreeSettings
@@ -122,6 +122,18 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
   ]
 
   const combined = settings.mode === 'combined'
+  const write = (settings.direction ?? 'read') === 'write'
+  const answers: { v: AnswerMode; title: string; desc: string }[] = write
+    ? [
+        { v: 'type', title: 'Tulis tangan', desc: 'Gambar hurufnya; bentuk, arah, dan urutan goresan diperiksa.' },
+        { v: 'choice', title: 'Pilihan ganda', desc: 'Pilih satu dari empat huruf Jepang.' },
+        { v: 'mix', title: 'Campur', desc: 'Selang-seling tulis tangan dan pilihan.' },
+      ]
+    : [
+        { v: 'type', title: 'Ketik', desc: 'Tulis romaji, misalnya “shi”.' },
+        { v: 'choice', title: 'Pilihan ganda', desc: 'Pilih satu dari empat bacaan.' },
+        { v: 'mix', title: 'Campur', desc: 'Selang-seling ketik dan pilihan.' },
+      ]
   const count = settings.selected.length
 
   return (
@@ -136,7 +148,7 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
         <div className="plank mb-8 rounded-xl px-6 py-5">
           <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-sharin-glow">Latihan Bebas</p>
           <h1 className="font-display mt-1 text-3xl font-extrabold">Meja Latihan</h1>
-          <p className="mt-1 text-sm text-[#cdb88f]">Ikuti tiga langkah di bawah, lalu soal muncul acak sampai kamu puas.</p>
+          <p className="mt-1 text-sm text-[#cdb88f]">Ikuti empat langkah di bawah, lalu soal muncul acak sampai kamu puas.</p>
         </div>
 
         <div className="relative">
@@ -144,7 +156,26 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
           <div className="absolute bottom-5 left-5 top-5 w-0.5 -translate-x-1/2 bg-[#4d3727]" aria-hidden />
 
           <ol className="relative">
-            <Step n={1} title="Pilih bentuk soal" hint="Mau berlatih satu huruf, atau rangkaian huruf acak?">
+            <Step n={1} title="Pilih arah soal" hint="Mau membaca huruf Jepang, atau menulisnya dari romaji?">
+              <div role="radiogroup" aria-label="Arah soal" className="grid gap-3 sm:grid-cols-2">
+                {(
+                  [
+                    { v: 'read', title: 'Baca', desc: 'Lihat huruf Jepang, jawab bacaannya dalam romaji. Contoh: し → shi.' },
+                    { v: 'write', title: 'Tulis', desc: 'Lihat romaji, jawab dengan huruf Jepangnya. Contoh: shi → し.' },
+                  ] as { v: Direction; title: string; desc: string }[]
+                ).map((o) => (
+                  <Choice
+                    key={o.v}
+                    selected={(settings.direction ?? 'read') === o.v}
+                    onClick={() => set({ direction: o.v })}
+                    title={o.title}
+                    desc={o.desc}
+                  />
+                ))}
+              </div>
+            </Step>
+
+            <Step n={2} title="Pilih bentuk soal" hint="Mau berlatih satu huruf, atau rangkaian huruf acak?">
               <div role="radiogroup" aria-label="Bentuk soal" className="grid gap-3 sm:grid-cols-2">
                 <Choice
                   selected={!combined}
@@ -181,15 +212,21 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
               )}
             </Step>
 
-            <Step n={2} title="Pilih cara menjawab" hint={combined ? 'Mode gabungan selalu dijawab dengan mengetik.' : 'Ketik bacaannya, atau pilih dari empat pilihan.'}>
+            <Step
+              n={3}
+              title="Pilih cara menjawab"
+              hint={
+                combined
+                  ? write
+                    ? 'Mode gabungan selalu dijawab dengan menulis tangan, huruf demi huruf.'
+                    : 'Mode gabungan selalu dijawab dengan mengetik.'
+                  : write
+                    ? 'Tulis hurufnya di kanvas, atau pilih dari empat pilihan.'
+                    : 'Ketik bacaannya, atau pilih dari empat pilihan.'
+              }
+            >
               <div role="radiogroup" aria-label="Cara menjawab" className="grid gap-3 sm:grid-cols-3">
-                {(
-                  [
-                    { v: 'type', title: 'Ketik', desc: 'Tulis romaji, misalnya “shi”.' },
-                    { v: 'choice', title: 'Pilihan ganda', desc: 'Pilih satu dari empat bacaan.' },
-                    { v: 'mix', title: 'Campur', desc: 'Selang-seling ketik dan pilihan.' },
-                  ] as { v: AnswerMode; title: string; desc: string }[]
-                ).map((o) => (
+                {answers.map((o) => (
                   <Choice
                     key={o.v}
                     selected={(combined ? 'type' : settings.answer) === o.v}
@@ -202,7 +239,7 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
               </div>
             </Step>
 
-            <Step n={3} title="Pilih huruf yang diuji" hint="Ketuk kepingan untuk memilih. Bisa campur hiragana dan katakana.">
+            <Step n={4} title="Pilih huruf yang diuji" hint="Ketuk kepingan untuk memilih. Bisa campur hiragana dan katakana.">
               <div className="tabs max-w-md" role="tablist" aria-label="Pilih skrip">
                 {(['hiragana', 'katakana'] as Script[]).map((s) => {
                   const n = GROUPS[s].flatMap((g) => g.kana).filter((k) => selected.has(k.id)).length

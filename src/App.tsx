@@ -53,6 +53,7 @@ function Routes() {
       mode: s.mode,
       length: s.length,
       answer: s.mode === 'combined' ? 'type' : s.answer,
+      direction: s.direction ?? 'read',
       total: null,
       hearts: false,
     })

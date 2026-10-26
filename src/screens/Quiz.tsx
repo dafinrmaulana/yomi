@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import DrawAnswer, { type DrawAnswerHandle } from '../components/DrawAnswer'
 import Hearts from '../components/Hearts'
 import Petals from '../components/Petals'
 import Scenery from '../components/Scenery'
 import Sharingan, { sharinganLevel } from '../components/Sharingan'
-import { KANA_BY_ID } from '../lib/kana'
+import { KANA_BY_ID, SCRIPT_LABEL } from '../lib/kana'
 import {
+  isChoiceAnswer,
   makeQuestion,
   pickPraise,
+  promptRomaji,
   questionXp,
   starsFor,
   type Question,
@@ -15,6 +18,7 @@ import {
 } from '../lib/quiz'
 import { display, longestPrefix, matchesSequence } from '../lib/romaji'
 import { sfx } from '../lib/sound'
+import { useStrokes } from '../lib/strokes'
 import { useKeyboard } from '../lib/useKeyboard'
 
 interface Props {
@@ -32,6 +36,11 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
   const startedAt = useRef(Date.now())
   const inputRef = useRef<HTMLInputElement>(null)
   const kb = useKeyboard()
+  const direction = config.direction ?? 'read'
+  const write = direction === 'write'
+  const strokeData = useStrokes(write)
+  const drawRef = useRef<DrawAnswerHandle>(null)
+  const [drawn, setDrawn] = useState(0)
 
   const merged = useCallback(() => {
     const out = { ...stats }
@@ -84,10 +93,9 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
     })
   }
 
-  const submit = (answer: string) => {
+  /** nilai soal: prefix = jumlah huruf benar sebelum huruf yang salah */
+  const grade = (ok: boolean, prefix: number) => {
     if (status !== 'idle') return
-    const ok = matchesSequence(answer, q.seq)
-    const prefix = ok ? q.seq.length : longestPrefix(answer, q.seq)
     q.seq.forEach((k, i) => {
       if (i > prefix) return
       const s = (session.current[k.id] ??= { r: 0, w: 0 })
@@ -114,6 +122,21 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
     }
   }
 
+  const submit = (answer: string) => {
+    if (status !== 'idle') return
+    if (q.type === 'choice' && write) {
+      const ok = isChoiceAnswer(q, answer, direction)
+      return grade(ok, ok ? 1 : 0)
+    }
+    const ok = matchesSequence(answer, q.seq)
+    grade(ok, ok ? q.seq.length : longestPrefix(answer, q.seq))
+  }
+
+  const skip = () => {
+    if (q.type === 'draw') drawRef.current?.skip()
+    else submit(q.type === 'type' ? input || '-' : '-')
+  }
+
   const next = () => {
     if (status === 'idle') return
     if (config.hearts && hearts <= 0) return finish(true)
@@ -123,6 +146,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
     setQNo((n) => n + 1)
     setInput('')
     setPicked(null)
+    setDrawn(0)
     setStatus('idle')
     setXpPop(null)
   }
@@ -132,6 +156,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
       e.preventDefault()
       if (status !== 'idle') next()
       else if (q.type === 'type' && input.trim()) submit(input)
+      else if (q.type === 'draw') drawRef.current?.check()
     } else if (status === 'idle' && q.type === 'choice' && /^[1-4]$/.test(e.key)) {
       const opt = q.options[Number(e.key) - 1]
       if (opt) pick(opt)
@@ -214,20 +239,29 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
             tiny ? 'hidden' : compact ? 'mb-3 text-xs' : 'mb-6 text-sm'
           }`}
         >
-          {q.type === 'choice'
-            ? 'Pilih bacaan yang benar'
-            : config.mode === 'combined'
-              ? 'Bacakan rangkaian huruf ini'
-              : 'Ketik bacaan huruf ini'}
+          {write
+            ? q.type === 'choice'
+              ? 'Pilih huruf yang benar'
+              : q.seq.length > 1
+                ? 'Tulis huruf-hurufnya berurutan'
+                : 'Tulis huruf Jepangnya'
+            : q.type === 'choice'
+              ? 'Pilih bacaan yang benar'
+              : config.mode === 'combined'
+                ? 'Bacakan rangkaian huruf ini'
+                : 'Ketik bacaan huruf ini'}
         </p>
 
         <div
           key={`${qNo}-${status === 'bad'}`}
-          className={`card relative grid min-w-56 place-items-center ${compact ? 'px-8 py-4' : 'px-10 py-8'} ${
+          className={`card relative grid min-w-56 place-items-center ${compact ? 'px-8 py-4' : write ? 'px-8 py-5' : 'px-10 py-8'} ${
             status === 'bad' ? 'animate-shake border-sharin' : status === 'ok' ? 'border-ok' : ''
           }`}
           style={{ boxShadow: '0 0 60px rgba(214, 40, 57, 0.12) inset' }}
         >
+          {write ? (
+            <RomajiPrompt seq={q.seq} />
+          ) : (
           <span
             className={`font-jp font-black leading-none text-glow ${
               compact
@@ -246,6 +280,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
           >
             {q.seq.map((k) => k.char).join('')}
           </span>
+          )}
           {xpPop && (
             <span
               key={xpPop.key}
@@ -257,7 +292,21 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
           )}
         </div>
 
-        {q.type === 'type' ? (
+        {q.type === 'draw' ? (
+          strokeData ? (
+            <DrawAnswer
+              key={qNo}
+              ref={drawRef}
+              seq={q.seq}
+              strokes={strokeData}
+              locked={status !== 'idle'}
+              onDraw={setDrawn}
+              onFinish={grade}
+            />
+          ) : (
+            <p className="mt-8 text-sm text-mute">Menyiapkan kanvas…</p>
+          )
+        ) : q.type === 'type' ? (
           <input
             ref={inputRef}
             value={input}
@@ -275,7 +324,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
         ) : (
           <div className="mt-8 grid w-full max-w-md grid-cols-2 gap-3">
             {q.options.map((opt, i) => {
-              const isAnswer = q.seq[0].romaji.includes(opt)
+              const isAnswer = isChoiceAnswer(q, opt, direction)
               const state =
                 status === 'idle'
                   ? ''
@@ -287,7 +336,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
               return (
                 <button key={opt} onClick={() => pick(opt)} disabled={status !== 'idle'} className={`opt ${state}`}>
                   <span className="num">{i + 1}</span>
-                  {opt}
+                  {write ? <span className="font-jp text-2xl">{opt}</span> : opt}
                 </button>
               )
             })}
@@ -310,10 +359,14 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
           {status === 'idle' ? (
             <>
-              <button className="btn btn-ghost" onClick={() => submit(q.type === 'type' ? input || '-' : '-')}>
+              <button className="btn btn-ghost" onClick={skip}>
                 Lewati
               </button>
-              {q.type === 'type' ? (
+              {q.type === 'draw' ? (
+                <button className="btn btn-red" disabled={!drawn} onClick={() => drawRef.current?.check()}>
+                  Periksa
+                </button>
+              ) : q.type === 'type' ? (
                 <button className="btn btn-red" disabled={!input.trim()} onClick={() => submit(input)}>
                   Periksa
                 </button>
@@ -328,12 +381,25 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
                   <>
                     <p className="text-xl font-extrabold text-ok">{praise}</p>
                     <p className="truncate text-sm text-ok/80">
-                      {q.seq.map((k) => k.char).join('')} = {display(q.seq)}
+                      {write ? (
+                        <>
+                          {q.seq.map(promptRomaji).join(' ')} = <span className="font-jp">{q.seq.map((k) => k.char).join('')}</span>
+                        </>
+                      ) : (
+                        <>
+                          {q.seq.map((k) => k.char).join('')} = {display(q.seq)}
+                        </>
+                      )}
                     </p>
                   </>
                 ) : (
                   <>
                     <p className="text-xl font-extrabold text-sharin-glow">Belum tepat</p>
+                    {write ? (
+                      <p className="truncate text-sm text-bone/80">
+                        Jawaban: <b className="font-jp text-base">{q.seq.map((k) => k.char).join('')}</b>
+                      </p>
+                    ) : (
                     <p className="truncate text-sm text-bone/80">
                       Jawaban: <b>{display(q.seq)}</b>
                       {q.seq.some((k) => k.romaji.length > 1) && (
@@ -343,6 +409,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
                         </span>
                       )}
                     </p>
+                    )}
                   </>
                 )}
               </div>
@@ -355,5 +422,29 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
       </div>
     </div>
     </>
+  )
+}
+
+/** soal arah tulis: romaji tiap huruf, plus label skrip supaya jelas hiragana atau katakana */
+function RomajiPrompt({ seq }: { seq: Question['seq'] }) {
+  const scripts = new Set(seq.map((k) => k.script))
+  const mixed = scripts.size > 1
+  const size = seq.length > 3 ? 'text-3xl sm:text-4xl' : seq.length > 1 ? 'text-4xl sm:text-5xl' : 'text-6xl sm:text-7xl'
+  return (
+    <div className="flex flex-col items-center gap-2">
+      {!mixed && (
+        <span className="rounded bg-black/30 px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.2em] text-[#cdb88f]">
+          {SCRIPT_LABEL[seq[0].script]}
+        </span>
+      )}
+      <div className="flex flex-wrap items-end justify-center gap-x-4 gap-y-2">
+        {seq.map((k, i) => (
+          <span key={i} className="flex flex-col items-center">
+            <span className={`font-black leading-none tracking-wide text-glow ${size}`}>{promptRomaji(k)}</span>
+            {mixed && <span className="mt-1 text-[10px] font-bold uppercase tracking-widest text-mute">{SCRIPT_LABEL[k.script]}</span>}
+          </span>
+        ))}
+      </div>
+    </div>
   )
 }

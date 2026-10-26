@@ -1,5 +1,5 @@
 import { ALL_KANA, type Kana } from './kana'
-import type { AnswerMode, QuizMode } from './storage'
+import type { AnswerMode, Direction, QuizMode } from './storage'
 
 export interface QuizConfig {
   kind: 'path' | 'free' | 'review'
@@ -10,6 +10,8 @@ export interface QuizConfig {
   mode: QuizMode
   length: number
   answer: AnswerMode
+  /** arah soal; default 'read' */
+  direction?: Direction
   /** jumlah soal; null = tanpa henti */
   total: number | null
   hearts: boolean
@@ -31,7 +33,9 @@ export interface QuizResult {
 
 export interface Question {
   seq: Kana[]
-  type: 'type' | 'choice'
+  /** draw = jawab dengan menulis huruf Jepang di kanvas */
+  type: 'type' | 'choice' | 'draw'
+  /** romaji (arah baca) atau huruf Jepang (arah tulis) */
   options: string[]
 }
 
@@ -114,11 +118,27 @@ export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string): 
     seq = Array.from({ length: len }, pickOne)
   }
 
+  const write = cfg.direction === 'write'
   const wantChoice =
     cfg.mode === 'single' && (cfg.answer === 'choice' || (cfg.answer === 'mix' && Math.random() < 0.5))
-  if (!wantChoice) return { seq, type: 'type', options: [] }
+  if (!wantChoice) return { seq, type: write ? 'draw' : 'type', options: [] }
 
   const target = seq[0]
+  if (write) {
+    // pilihan huruf Jepang: skrip sama, panjang sama, dan bacaannya tidak boleh bentrok dengan jawaban
+    const clash = (k: Kana) => k.romaji.some((r) => target.romaji.includes(r))
+    const options = [target.char]
+    const fits = (k: Kana) => k.script === target.script && k.char.length === target.char.length
+    const sources = [shuffle([...cfg.pool, ...cfg.review]).filter(fits), shuffle(ALL_KANA.filter(fits))]
+    for (const src of sources) {
+      for (const k of src) {
+        if (options.length >= 4) break
+        if (!clash(k) && !options.includes(k.char)) options.push(k.char)
+      }
+    }
+    return { seq, type: 'choice', options: shuffle(options) }
+  }
+
   const taken = new Set(target.romaji)
   const options = [target.romaji[0]]
   const sources = [shuffle([...cfg.pool, ...cfg.review]), shuffle(ALL_KANA)]
@@ -130,6 +150,23 @@ export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string): 
     }
   }
   return { seq, type: 'choice', options: shuffle(options) }
+}
+
+/** jawaban pilihan ganda benar? */
+export function isChoiceAnswer(q: Question, opt: string, direction: Direction = 'read'): boolean {
+  return direction === 'write' ? q.seq[0].char === opt : q.seq[0].romaji.includes(opt)
+}
+
+/**
+ * Romaji yang ditampilkan sebagai soal arah tulis. Bila bacaan utama dipakai huruf lain di skrip
+ * yang sama (じ/ぢ = ji, ず/づ = zu), pakai ejaan alternatif supaya soal tidak ambigu (ぢ = di).
+ */
+export function promptRomaji(k: Kana): string {
+  // huruf yang lebih dulu di daftar (じ, ず) tetap memakai bacaan utamanya
+  const before = ALL_KANA.slice(0, ALL_KANA.indexOf(k))
+  const taken = (r: string) => before.some((o) => o.script === k.script && o.romaji[0] === r)
+  if (!taken(k.romaji[0])) return k.romaji[0]
+  return k.romaji.find((r) => !taken(r)) ?? k.romaji[0]
 }
 
 export const starsFor = (correct: number, wrong: number) => {

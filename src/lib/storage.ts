@@ -3,12 +3,16 @@ import { GROUPS } from './kana'
 
 export type QuizMode = 'single' | 'combined'
 export type AnswerMode = 'type' | 'choice' | 'mix'
+/** read: huruf Jepang → romaji, write: romaji → huruf Jepang */
+export type Direction = 'read' | 'write'
 
 export interface FreeSettings {
   selected: string[]
   mode: QuizMode
   length: number
   answer: AnswerMode
+  /** kosong pada data lama = 'read' */
+  direction?: Direction
 }
 
 export interface DayStat {
@@ -89,6 +93,7 @@ const defaults = (): Progress => ({
     mode: 'single',
     length: 3,
     answer: 'type',
+    direction: 'read',
   },
 })
 

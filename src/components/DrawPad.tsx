@@ -4,7 +4,7 @@ import { checkStrokes, cleanStrokes, type CheckResult, type Pt, type StrokeStatu
 import type { StrokeData } from '../lib/strokes'
 import { Grid } from './StrokeAnimator'
 
-function toPath(pts: Pt[]) {
+export function toPath(pts: Pt[]) {
   if (pts.length === 1) return `M${pts[0][0]} ${pts[0][1]}l0.01 0`
   let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`
   for (let i = 1; i < pts.length - 1; i++) {
