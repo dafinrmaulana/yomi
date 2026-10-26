@@ -48,36 +48,70 @@ export function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-/** huruf yang sering salah muncul lebih sering */
-function weightedPick(pool: Kana[], stats: Stats): Kana {
-  const weights = pool.map((k) => {
-    const s = stats[k.id]
-    if (!s) return 2
-    return 1 + (3 * (s.w + 1)) / (s.r + s.w + 2)
-  })
-  let roll = Math.random() * weights.reduce((a, b) => a + b, 0)
-  for (let i = 0; i < pool.length; i++) {
-    roll -= weights[i]
-    if (roll <= 0) return pool[i]
-  }
-  return pool[pool.length - 1]
+/**
+ * Kocokan kartu per kuis: setiap huruf di pool keluar sekali per putaran sebelum ada yang terulang,
+ * sehingga sebaran merata. Huruf yang sering salah mendapat satu kartu tambahan per putaran.
+ */
+const decks = new WeakMap<Kana[], Kana[]>()
+
+function isWeak(k: Kana, stats: Stats): boolean {
+  const s = stats[k.id]
+  if (!s || s.w === 0) return false
+  return s.w / (s.r + s.w) >= 0.3
 }
+
+function buildDeck(pool: Kana[], stats: Stats, last?: Kana): Kana[] {
+  const extraCap = Math.max(1, Math.floor(pool.length * 0.3))
+  const extras = shuffle(pool.filter((k) => isWeak(k, stats))).slice(0, extraCap)
+  const deck = shuffle([...pool, ...extras])
+  // kartu tambahan jangan bersebelahan dengan kartu aslinya
+  for (let i = 1; i < deck.length; i++) {
+    if (deck[i].id !== deck[i - 1].id) continue
+    const j = deck.findIndex((k, idx) => idx > i && k.id !== deck[i].id && deck[idx - 1]?.id !== deck[i].id)
+    if (j > 0) {
+      ;[deck[i], deck[j]] = [deck[j], deck[i]]
+    }
+  }
+  // awal putaran baru jangan sama dengan kartu terakhir putaran sebelumnya
+  if (last && pool.length > 1 && deck[0].id === last.id) {
+    const j = deck.findIndex((k) => k.id !== last.id)
+    if (j > 0) [deck[0], deck[j]] = [deck[j], deck[0]]
+  }
+  return deck
+}
+
+function draw(pool: Kana[], stats: Stats, prev?: Kana): Kana {
+  let deck = decks.get(pool)
+  if (!deck || deck.length === 0) {
+    deck = buildDeck(pool, stats, prev)
+    decks.set(pool, deck)
+  }
+  // hindari huruf yang sama berturut-turut bila masih ada pilihan lain di kocokan
+  if (prev && deck[deck.length - 1].id === prev.id && pool.length > 1) {
+    const j = deck.findIndex((k) => k.id !== prev.id)
+    if (j >= 0) [deck[j], deck[deck.length - 1]] = [deck[deck.length - 1], deck[j]]
+  }
+  return deck.pop()!
+}
+
+const lastDrawn = new WeakMap<QuizConfig, Kana>()
 
 export const questionXp = (len: number) => 10 + (len - 1) * 4
 
 export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string): Question {
-  const pickOne = () =>
-    cfg.review.length && Math.random() < 0.3
-      ? weightedPick(cfg.review, stats)
-      : weightedPick(cfg.pool, stats)
+  const pickOne = (): Kana => {
+    const prev = lastDrawn.get(cfg)
+    const k =
+      cfg.review.length && Math.random() < 0.3 ? draw(cfg.review, stats, prev) : draw(cfg.pool, stats, prev)
+    lastDrawn.set(cfg, k)
+    return k
+  }
 
-  let seq: Kana[] = []
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const len = cfg.mode === 'single' ? 1 : cfg.length
+  const len = cfg.mode === 'single' ? 1 : cfg.length
+  let seq: Kana[] = Array.from({ length: len }, pickOne)
+  // soal yang persis sama dengan sebelumnya: ambil ulang sekali (kocokan tetap berjalan)
+  if (avoidKey && seq.map((k) => k.id).join() === avoidKey && cfg.pool.length > 1) {
     seq = Array.from({ length: len }, pickOne)
-    // hindari huruf yang sama berurutan di dalam gabungan, dan soal yang sama dua kali
-    const dup = seq.some((k, i) => i > 0 && k.id === seq[i - 1].id) && cfg.pool.length > 1
-    if (!dup && seq.map((k) => k.id).join() !== avoidKey) break
   }
 
   const wantChoice =
