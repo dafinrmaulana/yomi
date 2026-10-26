@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import DrawAnswer, { type DrawAnswerHandle } from '../components/DrawAnswer'
 import Hearts from '../components/Hearts'
 import Petals from '../components/Petals'
 import Scenery from '../components/Scenery'
 import Sharingan, { sharinganLevel } from '../components/Sharingan'
 import { KANA_BY_ID, SCRIPT_LABEL } from '../lib/kana'
 import {
+  checkKana,
   isChoiceAnswer,
   makeQuestion,
   pickPraise,
@@ -18,7 +18,6 @@ import {
 } from '../lib/quiz'
 import { display, longestPrefix, matchesSequence } from '../lib/romaji'
 import { sfx } from '../lib/sound'
-import { useStrokes } from '../lib/strokes'
 import { useKeyboard } from '../lib/useKeyboard'
 
 interface Props {
@@ -38,9 +37,6 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
   const kb = useKeyboard()
   const direction = config.direction ?? 'read'
   const write = direction === 'write'
-  const strokeData = useStrokes(write)
-  const drawRef = useRef<DrawAnswerHandle>(null)
-  const [drawn, setDrawn] = useState(0)
 
   const merged = useCallback(() => {
     const out = { ...stats }
@@ -128,13 +124,16 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
       const ok = isChoiceAnswer(q, answer, direction)
       return grade(ok, ok ? 1 : 0)
     }
+    if (write) {
+      const r = checkKana(answer, q.seq)
+      return grade(r.ok, r.prefix)
+    }
     const ok = matchesSequence(answer, q.seq)
     grade(ok, ok ? q.seq.length : longestPrefix(answer, q.seq))
   }
 
   const skip = () => {
-    if (q.type === 'draw') drawRef.current?.skip()
-    else submit(q.type === 'type' ? input || '-' : '-')
+    submit(q.type === 'type' ? input || '-' : '-')
   }
 
   const next = () => {
@@ -146,17 +145,17 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
     setQNo((n) => n + 1)
     setInput('')
     setPicked(null)
-    setDrawn(0)
     setStatus('idle')
     setXpPop(null)
   }
 
   const handleKey = (e: KeyboardEvent) => {
+    // Enter saat IME (keyboard Jepang) masih menyusun kata hanya mengonfirmasi konversi
+    if (e.isComposing || e.keyCode === 229) return
     if (e.key === 'Enter') {
       e.preventDefault()
       if (status !== 'idle') next()
       else if (q.type === 'type' && input.trim()) submit(input)
-      else if (q.type === 'draw') drawRef.current?.check()
     } else if (status === 'idle' && q.type === 'choice' && /^[1-4]$/.test(e.key)) {
       const opt = q.options[Number(e.key) - 1]
       if (opt) pick(opt)
@@ -243,8 +242,8 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
             ? q.type === 'choice'
               ? 'Pilih huruf yang benar'
               : q.seq.length > 1
-                ? 'Tulis huruf-hurufnya berurutan'
-                : 'Tulis huruf Jepangnya'
+                ? 'Ketik rangkaian huruf Jepangnya'
+                : 'Ketik huruf Jepangnya'
             : q.type === 'choice'
               ? 'Pilih bacaan yang benar'
               : config.mode === 'combined'
@@ -292,21 +291,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
           )}
         </div>
 
-        {q.type === 'draw' ? (
-          strokeData ? (
-            <DrawAnswer
-              key={qNo}
-              ref={drawRef}
-              seq={q.seq}
-              strokes={strokeData}
-              locked={status !== 'idle'}
-              onDraw={setDrawn}
-              onFinish={grade}
-            />
-          ) : (
-            <p className="mt-8 text-sm text-mute">Menyiapkan kanvas…</p>
-          )
-        ) : q.type === 'type' ? (
+        {q.type === 'type' ? (
           <input
             ref={inputRef}
             value={input}
@@ -316,10 +301,11 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
             autoCapitalize="off"
             autoCorrect="off"
             spellCheck={false}
-            placeholder={config.mode === 'combined' ? 'contoh: sashisu' : 'ketik romaji…'}
+            lang={write ? 'ja' : undefined}
+            placeholder={write ? (config.mode === 'combined' ? 'contoh: さしす' : 'ketik huruf Jepang…') : config.mode === 'combined' ? 'contoh: sashisu' : 'ketik romaji…'}
             className={`w-full max-w-sm rounded-[3px] border-2 border-[#4d3727] bg-[#120c09]/90 px-5 text-center font-bold ${
               compact ? 'mt-4 py-3 text-xl' : 'mt-8 py-4 text-2xl'
-            } tracking-wider text-bone outline-none transition placeholder:text-mute/50 focus:border-sharin disabled:opacity-60`}
+            } ${write ? 'font-jp' : ''} tracking-wider text-bone outline-none transition placeholder:text-mute/50 focus:border-sharin disabled:opacity-60`}
           />
         ) : (
           <div className="mt-8 grid w-full max-w-md grid-cols-2 gap-3">
@@ -362,11 +348,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
               <button className="btn btn-ghost" onClick={skip}>
                 Lewati
               </button>
-              {q.type === 'draw' ? (
-                <button className="btn btn-red" disabled={!drawn} onClick={() => drawRef.current?.check()}>
-                  Periksa
-                </button>
-              ) : q.type === 'type' ? (
+              {q.type === 'type' ? (
                 <button className="btn btn-red" disabled={!input.trim()} onClick={() => submit(input)}>
                   Periksa
                 </button>

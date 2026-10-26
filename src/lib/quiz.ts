@@ -33,8 +33,8 @@ export interface QuizResult {
 
 export interface Question {
   seq: Kana[]
-  /** draw = jawab dengan menulis huruf Jepang di kanvas */
-  type: 'type' | 'choice' | 'draw'
+  /** type = ketik jawaban (romaji untuk arah baca, huruf Jepang untuk arah tulis) */
+  type: 'type' | 'choice'
   /** romaji (arah baca) atau huruf Jepang (arah tulis) */
   options: string[]
 }
@@ -121,7 +121,7 @@ export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string): 
   const write = cfg.direction === 'write'
   const wantChoice =
     cfg.mode === 'single' && (cfg.answer === 'choice' || (cfg.answer === 'mix' && Math.random() < 0.5))
-  if (!wantChoice) return { seq, type: write ? 'draw' : 'type', options: [] }
+  if (!wantChoice) return { seq, type: 'type', options: [] }
 
   const target = seq[0]
   if (write) {
@@ -150,6 +150,22 @@ export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string): 
     }
   }
   return { seq, type: 'choice', options: shuffle(options) }
+}
+
+/** rapikan ketikan huruf Jepang: buang spasi (termasuk spasi lebar) */
+const normalizeKana = (s: string) => s.normalize('NFC').replace(/[\s\u3000]/g, '')
+
+/** arah tulis: ketikan sama persis dengan huruf soal? prefix = jumlah huruf benar dari depan */
+export function checkKana(input: string, seq: Kana[]): { ok: boolean; prefix: number } {
+  const text = normalizeKana(input)
+  let pos = 0
+  let prefix = 0
+  for (const k of seq) {
+    if (!text.startsWith(k.char, pos)) break
+    pos += k.char.length
+    prefix++
+  }
+  return { ok: prefix === seq.length && pos === text.length, prefix }
 }
 
 /** jawaban pilihan ganda benar? */

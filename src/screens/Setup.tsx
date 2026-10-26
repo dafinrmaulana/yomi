@@ -125,9 +125,9 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
   const write = (settings.direction ?? 'read') === 'write'
   const answers: { v: AnswerMode; title: string; desc: string }[] = write
     ? [
-        { v: 'type', title: 'Tulis tangan', desc: 'Gambar hurufnya; bentuk, arah, dan urutan goresan diperiksa.' },
+        { v: 'type', title: 'Ketik', desc: 'Ketik huruf Jepangnya dengan keyboard Jepang, misalnya “し”.' },
         { v: 'choice', title: 'Pilihan ganda', desc: 'Pilih satu dari empat huruf Jepang.' },
-        { v: 'mix', title: 'Campur', desc: 'Selang-seling tulis tangan dan pilihan.' },
+        { v: 'mix', title: 'Campur', desc: 'Selang-seling ketik dan pilihan.' },
       ]
     : [
         { v: 'type', title: 'Ketik', desc: 'Tulis romaji, misalnya “shi”.' },
@@ -217,11 +217,9 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
               title="Pilih cara menjawab"
               hint={
                 combined
-                  ? write
-                    ? 'Mode gabungan selalu dijawab dengan menulis tangan, huruf demi huruf.'
-                    : 'Mode gabungan selalu dijawab dengan mengetik.'
+                  ? 'Mode gabungan selalu dijawab dengan mengetik.'
                   : write
-                    ? 'Tulis hurufnya di kanvas, atau pilih dari empat pilihan.'
+                    ? 'Ketik huruf Jepangnya, atau pilih dari empat pilihan.'
                     : 'Ketik bacaannya, atau pilih dari empat pilihan.'
               }
             >
