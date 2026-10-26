@@ -1,5 +1,6 @@
 import Confetti from '../components/Confetti'
 import Petals from '../components/Petals'
+import Scenery from '../components/Scenery'
 import Sharingan from '../components/Sharingan'
 import type { QuizResult } from '../lib/quiz'
 
@@ -35,12 +36,13 @@ export default function Summary({ result, bonusXp, onRetry, onHome }: Props) {
   ]
 
   return (
-    <div className="bg-seigaiha relative grid min-h-dvh place-items-center px-4 py-10">
+    <div className="relative grid min-h-dvh place-items-center px-4 py-10">
+      <Scenery />
       <Petals count={10} />
       {celebrate && <Confetti />}
       <div className="relative z-10 w-full max-w-lg text-center">
         <div className="animate-pop mx-auto mb-4 w-fit">
-          <Sharingan level={failed ? 0 : acc >= 90 ? 4 : 3} size={120} spin={!failed} />
+          <Sharingan level={failed ? 1 : acc >= 90 ? 4 : 3} size={120} spin={!failed} />
         </div>
         <h1 className="text-4xl font-black text-glow">{title}</h1>
         <p className="mt-2 text-mute">{sub}</p>

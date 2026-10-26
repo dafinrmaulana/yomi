@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Hearts from '../components/Hearts'
+import Petals from '../components/Petals'
+import Scenery from '../components/Scenery'
 import Sharingan, { sharinganLevel } from '../components/Sharingan'
 import { KANA_BY_ID } from '../lib/kana'
 import {
@@ -156,6 +158,9 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
   const long = q.seq.length > 3
 
   return (
+    <>
+    <Scenery moonLevel={level} />
+    <Petals count={10} />
     <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 pb-44 pt-4">
       {/* bar atas */}
       <div className="flex items-center gap-3">
@@ -186,8 +191,9 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
 
         {config.hearts && <Hearts left={hearts} />}
         <div className="flex items-center gap-1.5" title={`Combo ${combo}`}>
-          <Sharingan level={level} size={30} spin={level > 0} />
+          <Sharingan level={level} size={30} />
           <span className="min-w-5 text-sm font-extrabold tabular-nums">{combo}</span>
+          <span className="hidden text-[10px] font-bold uppercase tracking-widest text-mute sm:inline">Combo</span>
         </div>
       </div>
 
@@ -238,7 +244,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
             autoCorrect="off"
             spellCheck={false}
             placeholder={config.mode === 'combined' ? 'contoh: sashisu' : 'ketik romaji…'}
-            className="mt-8 w-full max-w-sm rounded-2xl border-2 border-edge bg-panel px-5 py-4 text-center text-2xl font-bold tracking-wider text-bone outline-none transition placeholder:text-mute/50 focus:border-sharin disabled:opacity-60"
+            className="mt-8 w-full max-w-sm rounded-[3px] border-2 border-[#4d3727] bg-[#120c09]/90 px-5 py-4 text-center text-2xl font-bold tracking-wider text-bone outline-none transition placeholder:text-mute/50 focus:border-sharin disabled:opacity-60"
           />
         ) : (
           <div className="mt-8 grid w-full max-w-md grid-cols-2 gap-3">
@@ -246,22 +252,15 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
               const isAnswer = q.seq[0].romaji.includes(opt)
               const state =
                 status === 'idle'
-                  ? 'border-edge hover:border-sharin'
+                  ? ''
                   : isAnswer
-                    ? 'border-ok bg-ok/15'
+                    ? 'opt-ok'
                     : picked === opt
-                      ? 'border-sharin bg-sharin/15'
-                      : 'border-edge opacity-50'
+                      ? 'opt-bad'
+                      : 'opt-dim'
               return (
-                <button
-                  key={opt}
-                  onClick={() => pick(opt)}
-                  disabled={status !== 'idle'}
-                  className={`flex cursor-pointer items-center gap-3 rounded-2xl border-2 bg-panel px-4 py-4 text-left text-xl font-bold transition ${state}`}
-                >
-                  <span className="grid size-7 place-items-center rounded-lg border border-edge text-xs text-mute">
-                    {i + 1}
-                  </span>
+                <button key={opt} onClick={() => pick(opt)} disabled={status !== 'idle'} className={`opt ${state}`}>
+                  <span className="num">{i + 1}</span>
                   {opt}
                 </button>
               )
@@ -274,7 +273,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
       <div
         className={`fixed inset-x-0 bottom-0 z-20 border-t-2 px-4 py-5 ${
           status === 'idle'
-            ? 'border-edge bg-night'
+            ? 'border-[#3a2a20] bg-[#0f0a07]/95'
             : status === 'ok'
               ? 'animate-rise border-ok-dark bg-[#0f2a1b]'
               : 'animate-rise border-sharin-dark bg-[#2b0f14]'
@@ -327,5 +326,6 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
         </div>
       </div>
     </div>
+    </>
   )
 }

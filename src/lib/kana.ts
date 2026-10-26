@@ -99,10 +99,13 @@ export const ALL_KANA: Kana[] = [...GROUPS.hiragana, ...GROUPS.katakana].flatMap
 
 export const KANA_BY_ID: Record<string, Kana> = Object.fromEntries(ALL_KANA.map((k) => [k.id, k]))
 
-export const SCRIPT_LABEL: Record<Script, string> = { hiragana: 'ひらがな', katakana: 'カタカナ' }
+export const SCRIPT_LABEL: Record<Script, string> = { hiragana: 'Hiragana', katakana: 'Katakana' }
 
 export const KIND_LABEL: Record<KanaGroup['kind'], string> = {
   dasar: 'Dasar',
   dakuten: 'Dakuten & Handakuten',
   yoon: 'Yōon (gabungan)',
 }
+
+const TITLE_PREFIX = { dasar: 'Baris', dakuten: 'Bersuara', yoon: 'Gabungan' } as const
+export const groupTitle = (g: KanaGroup) => `${TITLE_PREFIX[g.kind]} ${g.label}`

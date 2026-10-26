@@ -103,5 +103,5 @@ export const starsFor = (correct: number, wrong: number) => {
   return acc >= 0.9 ? 3 : acc >= 0.7 ? 2 : 1
 }
 
-export const PRAISE = ['Sugoi!', 'Subarashii!', 'Yoshi!', 'Kanpeki!', 'Tadashii!', 'Ii ne!']
+export const PRAISE = ['Sugoi! (hebat)', 'Subarashii! (luar biasa)', 'Yoshi! (bagus)', 'Kanpeki! (sempurna)', 'Tadashii! (benar)', 'Ii ne! (mantap)']
 export const pickPraise = () => rand(PRAISE)

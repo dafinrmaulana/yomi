@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { GROUPS } from './lib/kana'
 import { lessonConfig, type PathNode } from './lib/path'
 import type { QuizConfig, QuizResult } from './lib/quiz'
@@ -20,7 +20,35 @@ export default function App() {
   const { progress, patch, record, reset, liveStreak, todayXp } = useProgress()
   const [view, setView] = useState<View>({ name: 'home' })
 
-  const startQuiz = (config: QuizConfig, run = Date.now()) => setView({ name: 'quiz', config, run })
+  // riwayat browser: tombol Back (fisik/browser) kembali ke layar sebelumnya, bukan menutup web
+  const screens = useRef(new Map<number, View>([[0, { name: 'home' }]]))
+  const counter = useRef(0)
+
+  useEffect(() => {
+    history.replaceState({ id: 0 }, '')
+    const onPop = (e: PopStateEvent) => {
+      const id = (e.state as { id?: number } | null)?.id
+      setView(screens.current.get(id ?? 0) ?? { name: 'home' })
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+
+  const go = useCallback((next: View, mode: 'push' | 'replace' = 'push') => {
+    const id = ++counter.current
+    // kuis & ringkasan tidak dipulihkan lewat Forward; cukup beranda dan meja latihan
+    if (next.name === 'home' || next.name === 'setup') screens.current.set(id, next)
+    history[mode === 'push' ? 'pushState' : 'replaceState']({ id }, '')
+    setView(next)
+  }, [])
+
+  const back = useCallback(() => {
+    if (history.state && (history.state as { id?: number }).id) history.back()
+    else go({ name: 'home' }, 'replace')
+  }, [go])
+
+  const startQuiz = (config: QuizConfig, mode: 'push' | 'replace' = 'push') =>
+    go({ name: 'quiz', config, run: Date.now() }, mode)
 
   const startFree = () => {
     const s = progress.free
@@ -52,7 +80,7 @@ export default function App() {
       completedNode:
         done && result.config.nodeId ? { id: result.config.nodeId, stars: result.stars } : undefined,
     })
-    setView({ name: 'summary', result, bonus, run: Date.now() })
+    go({ name: 'summary', result, bonus, run: Date.now() }, 'replace')
   }
 
   switch (view.name) {
@@ -62,7 +90,7 @@ export default function App() {
           settings={progress.free}
           onChange={(free) => patch({ free })}
           onStart={startFree}
-          onBack={() => setView({ name: 'home' })}
+          onBack={back}
         />
       )
     case 'quiz':
@@ -73,7 +101,7 @@ export default function App() {
           stats={progress.stats}
           mute={progress.mute}
           onFinish={finish}
-          onExit={() => setView({ name: 'home' })}
+          onExit={back}
         />
       )
     case 'summary':
@@ -82,8 +110,9 @@ export default function App() {
           key={view.run}
           result={view.result}
           bonusXp={view.bonus}
-          onRetry={() => startQuiz(view.result.config)}
-          onHome={() => setView({ name: 'home' })}
+          onRetry={() => startQuiz(view.result.config, 'replace')}
+          // ringkasan menimpa entri kuis: path = [home, ringkasan], bebas = [home, meja, ringkasan]
+          onHome={() => history.go(view.result.config.kind === 'free' ? -2 : -1)}
         />
       )
     default:
@@ -93,7 +122,7 @@ export default function App() {
           streak={liveStreak}
           todayXp={todayXp}
           onLesson={(n: PathNode) => startQuiz(lessonConfig(n))}
-          onFree={() => setView({ name: 'setup' })}
+          onFree={() => go({ name: 'setup' })}
           onToggleMute={() => patch({ mute: !progress.mute })}
           onReset={reset}
         />

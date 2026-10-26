@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Petals from '../components/Petals'
-import { GROUPS, KIND_LABEL, SCRIPT_LABEL, type Script } from '../lib/kana'
-import type { AnswerMode, FreeSettings, QuizMode } from '../lib/storage'
+import { GROUPS, KIND_LABEL, SCRIPT_LABEL, groupTitle, type Kana, type Script } from '../lib/kana'
+import type { AnswerMode, FreeSettings } from '../lib/storage'
 
 interface Props {
   settings: FreeSettings
@@ -10,29 +10,87 @@ interface Props {
   onBack: () => void
 }
 
-function Seg<T extends string>({
-  value,
-  options,
-  onChange,
+function Step({ n, title, hint, children }: { n: number; title: string; hint: string; children: ReactNode }) {
+  return (
+    <li className="relative pb-10 pl-14 last:pb-0">
+      <span className="absolute left-0 top-0 z-10 grid size-10 place-items-center rounded-full border-2 border-[#6a4b36] bg-[#2a1c14] text-lg font-extrabold text-[#f3e7cf]">
+        {n}
+      </span>
+      <h2 className="font-display text-xl font-extrabold leading-10">{title}</h2>
+      <p className="text-sm text-[#b9a782]">{hint}</p>
+      <div className="mt-4">{children}</div>
+    </li>
+  )
+}
+
+function Choice({
+  selected,
+  disabled,
+  title,
+  desc,
+  onClick,
 }: {
-  value: T
-  options: { v: T; label: string; disabled?: boolean }[]
-  onChange: (v: T) => void
+  selected: boolean
+  disabled?: boolean
+  title: string
+  desc: string
+  onClick: () => void
 }) {
   return (
-    <div className="grid auto-cols-fr grid-flow-col gap-2">
-      {options.map((o) => (
-        <button
-          key={o.v}
-          disabled={o.disabled}
-          onClick={() => onChange(o.v)}
-          className={`btn px-3 py-3 text-xs ${value === o.v ? 'btn-red' : 'btn-ghost'}`}
+    <button
+      role="radio"
+      aria-checked={selected}
+      disabled={disabled}
+      onClick={onClick}
+      className={`flex min-w-0 flex-col gap-1 rounded-lg border-2 p-4 text-left transition ${
+        selected ? 'border-sharin bg-sharin/10' : 'border-[#3a2a20] bg-[#120c09]/80 hover:border-[#6a4b36]'
+      } ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+    >
+      <span className="flex items-center gap-2 text-base font-bold">
+        <span
+          className={`grid size-5 shrink-0 place-items-center rounded-full border-2 ${
+            selected ? 'border-sharin bg-sharin' : 'border-[#6a4b36]'
+          }`}
         >
-          {o.label}
-        </button>
-      ))}
-    </div>
+          {selected && (
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12.5l4.5 4.5L19 7.5" />
+            </svg>
+          )}
+        </span>
+        {title}
+      </span>
+      <span className="text-sm leading-snug text-[#b9a782]">{desc}</span>
+    </button>
   )
+}
+
+const quiet =
+  'cursor-pointer rounded border border-[#4d3727] px-3 py-1.5 text-sm font-semibold text-[#b9a782] transition hover:border-[#8a6a4a] hover:bg-[#2a1c14] hover:text-[#ead9b6]'
+
+// jalan pintas: lebih menonjol dari tombol sekunder, tapi tetap di bawah tombol utama
+const preset =
+  'inline-flex cursor-pointer items-center gap-1.5 rounded border border-[#a8834f] bg-[#e9b44c]/10 px-3.5 py-2 text-sm font-bold text-[#f3dca6] transition hover:bg-[#e9b44c]/20 hover:border-[#d6a85f] active:translate-y-px'
+
+interface Card {
+  key: string
+  title: string
+  kana: Kana[]
+}
+
+/** satu kartu per baris; huruf gabungan dipecah per tiga (kya kyu kyo) supaya sama besar dengan kartu lain */
+function cardsFor(script: Script, kind: 'dasar' | 'dakuten' | 'yoon'): Card[] {
+  return GROUPS[script]
+    .filter((g) => g.kind === kind)
+    .flatMap((g): Card[] => {
+      if (kind !== 'yoon') return [{ key: g.id, title: groupTitle(g), kana: g.kana }]
+      const out: Card[] = []
+      for (let i = 0; i < g.kana.length; i += 3) {
+        const kana = g.kana.slice(i, i + 3)
+        out.push({ key: `${g.id}-${i}`, title: kana.map((k) => k.romaji[0].toUpperCase()).join(' · '), kana })
+      }
+      return out
+    })
 }
 
 export default function Setup({ settings, onChange, onStart, onBack }: Props) {
@@ -56,153 +114,187 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
     GROUPS[s].filter((g) => !kinds || kinds.includes(g.kind)).flatMap((g) => g.kana.map((k) => k.id))
 
   const presets: { label: string; ids: () => string[] }[] = [
-    { label: 'Vokal あ', ids: () => GROUPS[script][0].kana.map((k) => k.id) },
+    { label: 'Vokal (A I U E O)', ids: () => GROUPS[script][0].kana.map((k) => k.id) },
     { label: 'Semua dasar', ids: () => idsOf(script, ['dasar']) },
-    { label: '+ Dakuten', ids: () => idsOf(script, ['dasar', 'dakuten']) },
-    { label: 'Semua', ids: () => idsOf(script) },
+    { label: 'Dasar + Dakuten', ids: () => idsOf(script, ['dasar', 'dakuten']) },
+    { label: 'Semua huruf', ids: () => idsOf(script) },
   ]
 
   const combined = settings.mode === 'combined'
+  const count = settings.selected.length
 
   return (
-    <div className="bg-seigaiha relative min-h-dvh">
+    <div className="desk relative min-h-dvh">
       <Petals count={8} />
-      <div className="relative z-10 mx-auto max-w-3xl px-4 pb-32 pt-5">
-        <button onClick={onBack} className="mb-4 cursor-pointer text-sm font-bold text-mute transition hover:text-bone">
+      <div className="relative z-10 mx-auto max-w-4xl px-4 pb-32 pt-5">
+        <button onClick={onBack} className="btn btn-ghost btn-sm mb-5">
           ← Kembali
         </button>
-        <h1 className="text-3xl font-black">Latihan Bebas</h1>
-        <p className="mt-1 text-sm text-mute">Pilih huruf yang mau diuji. Soal akan muncul acak sampai kamu menekan selesai.</p>
 
-        {/* mode */}
-        <section className="card mt-6 space-y-5 p-5">
-          <div>
-            <h2 className="mb-2 text-xs font-extrabold uppercase tracking-widest text-mute">Bentuk soal</h2>
-            <Seg<QuizMode>
-              value={settings.mode}
-              onChange={(mode) => set({ mode })}
-              options={[
-                { v: 'single', label: 'Per huruf' },
-                { v: 'combined', label: 'Gabungan acak' },
-              ]}
-            />
-          </div>
+        <div className="plank mb-8 rounded-xl px-6 py-5">
+          <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-sharin-glow">Latihan Bebas</p>
+          <h1 className="font-display mt-1 text-3xl font-extrabold">Meja Latihan</h1>
+          <p className="mt-1 text-sm text-[#cdb88f]">Ikuti tiga langkah di bawah, lalu soal muncul acak sampai kamu puas.</p>
+        </div>
 
-          {combined && (
-            <div>
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-xs font-extrabold uppercase tracking-widest text-mute">Panjang rangkaian</h2>
-                <span className="font-jp text-lg font-bold">{settings.length} huruf</span>
+        <div className="relative">
+          {/* garis timeline */}
+          <div className="absolute bottom-5 left-5 top-5 w-0.5 -translate-x-1/2 bg-[#4d3727]" aria-hidden />
+
+          <ol className="relative">
+            <Step n={1} title="Pilih bentuk soal" hint="Mau berlatih satu huruf, atau rangkaian huruf acak?">
+              <div role="radiogroup" aria-label="Bentuk soal" className="grid gap-3 sm:grid-cols-2">
+                <Choice
+                  selected={!combined}
+                  onClick={() => set({ mode: 'single' })}
+                  title="Per huruf"
+                  desc="Satu huruf acak di setiap soal."
+                />
+                <Choice
+                  selected={combined}
+                  onClick={() => set({ mode: 'combined' })}
+                  title="Gabungan acak"
+                  desc="Beberapa huruf acak berurutan, dijawab sekaligus."
+                />
               </div>
-              <input
-                type="range"
-                min={2}
-                max={6}
-                value={settings.length}
-                onChange={(e) => set({ length: Number(e.target.value) })}
-                className="w-full accent-sharin"
-              />
-            </div>
-          )}
 
-          <div>
-            <h2 className="mb-2 text-xs font-extrabold uppercase tracking-widest text-mute">Cara menjawab</h2>
-            <Seg<AnswerMode>
-              value={combined ? 'type' : settings.answer}
-              onChange={(answer) => set({ answer })}
-              options={[
-                { v: 'type', label: 'Ketik' },
-                { v: 'choice', label: 'Pilihan ganda', disabled: combined },
-                { v: 'mix', label: 'Campur', disabled: combined },
-              ]}
-            />
-            {combined && <p className="mt-2 text-xs text-mute">Mode gabungan selalu dijawab dengan mengetik, misalnya “sashisu”.</p>}
-          </div>
-        </section>
-
-        {/* huruf */}
-        <section className="card mt-5 p-5">
-          <div className="mb-4 flex gap-2">
-            {(['hiragana', 'katakana'] as Script[]).map((s) => {
-              const count = GROUPS[s].flatMap((g) => g.kana).filter((k) => selected.has(k.id)).length
-              return (
-                <button
-                  key={s}
-                  onClick={() => setScript(s)}
-                  className={`btn flex-1 ${script === s ? 'btn-red' : 'btn-ghost'}`}
-                >
-                  <span className="font-jp text-base normal-case">{SCRIPT_LABEL[s]}</span>
-                  {count > 0 && <span className="rounded-md bg-black/30 px-1.5 text-xs">{count}</span>}
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="mb-5 flex flex-wrap gap-2">
-            {presets.map((p) => (
-              <button key={p.label} onClick={() => setIds(new Set([...selected, ...p.ids()]))} className="rounded-full border border-edge bg-panel-2 px-3 py-1.5 text-xs font-bold transition hover:border-sharin">
-                {p.label}
-              </button>
-            ))}
-            <button
-              onClick={() => setIds([...selected].filter((id) => !id.startsWith(script)))}
-              className="rounded-full border border-edge px-3 py-1.5 text-xs font-bold text-mute transition hover:border-sharin hover:text-bone"
-            >
-              Kosongkan {SCRIPT_LABEL[script]}
-            </button>
-          </div>
-
-          <div className="space-y-5">
-            {(['dasar', 'dakuten', 'yoon'] as const).map((kind) => (
-              <div key={kind}>
-                <h3 className="mb-2 text-xs font-bold uppercase tracking-widest text-mute">{KIND_LABEL[kind]}</h3>
-                <div className="space-y-2">
-                  {GROUPS[script]
-                    .filter((g) => g.kind === kind)
-                    .map((g) => {
-                      const ids = g.kana.map((k) => k.id)
-                      const all = ids.every((i) => selected.has(i))
-                      return (
-                        <div key={g.id} className="flex flex-wrap items-center gap-2">
-                          <button
-                            onClick={() => toggleMany(ids)}
-                            className={`w-24 shrink-0 cursor-pointer rounded-lg border px-2 py-2 text-[11px] font-extrabold tracking-wider transition ${
-                              all ? 'border-sharin bg-sharin/20 text-sharin-glow' : 'border-edge text-mute hover:text-bone'
-                            }`}
-                          >
-                            {g.label}
-                          </button>
-                          {g.kana.map((k) => {
-                            const on = selected.has(k.id)
-                            return (
-                              <button
-                                key={k.id}
-                                onClick={() => toggle(k.id)}
-                                className={`flex min-w-14 cursor-pointer flex-col items-center rounded-xl border-2 px-2 py-1.5 transition ${
-                                  on ? 'border-sharin bg-sharin/15' : 'border-edge bg-panel-2 opacity-70 hover:opacity-100'
-                                }`}
-                              >
-                                <span className="font-jp text-2xl font-bold leading-tight">{k.char}</span>
-                                <span className="text-[10px] font-semibold text-mute">{k.romaji[0]}</span>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      )
-                    })}
+              {combined && (
+                <div className="mt-3 rounded-lg border border-[#3a2a20] bg-[#120c09]/80 p-4">
+                  <div className="mb-2 flex items-baseline justify-between gap-3">
+                    <label htmlFor="len" className="text-sm font-semibold">
+                      Panjang rangkaian
+                    </label>
+                    <b className="text-xl tabular-nums">{settings.length} huruf</b>
+                  </div>
+                  <input
+                    id="len"
+                    type="range"
+                    min={2}
+                    max={6}
+                    value={settings.length}
+                    onChange={(e) => set({ length: Number(e.target.value) })}
+                    className="w-full accent-sharin"
+                  />
                 </div>
+              )}
+            </Step>
+
+            <Step n={2} title="Pilih cara menjawab" hint={combined ? 'Mode gabungan selalu dijawab dengan mengetik.' : 'Ketik bacaannya, atau pilih dari empat pilihan.'}>
+              <div role="radiogroup" aria-label="Cara menjawab" className="grid gap-3 sm:grid-cols-3">
+                {(
+                  [
+                    { v: 'type', title: 'Ketik', desc: 'Tulis romaji, misalnya “shi”.' },
+                    { v: 'choice', title: 'Pilihan ganda', desc: 'Pilih satu dari empat bacaan.' },
+                    { v: 'mix', title: 'Campur', desc: 'Selang-seling ketik dan pilihan.' },
+                  ] as { v: AnswerMode; title: string; desc: string }[]
+                ).map((o) => (
+                  <Choice
+                    key={o.v}
+                    selected={(combined ? 'type' : settings.answer) === o.v}
+                    disabled={combined && o.v !== 'type'}
+                    onClick={() => set({ answer: o.v })}
+                    title={o.title}
+                    desc={o.desc}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </Step>
+
+            <Step n={3} title="Pilih huruf yang diuji" hint="Ketuk kepingan untuk memilih. Bisa campur hiragana dan katakana.">
+              <div className="tabs max-w-md" role="tablist" aria-label="Pilih skrip">
+                {(['hiragana', 'katakana'] as Script[]).map((s) => {
+                  const n = GROUPS[s].flatMap((g) => g.kana).filter((k) => selected.has(k.id)).length
+                  return (
+                    <button key={s} role="tab" aria-selected={script === s} onClick={() => setScript(s)} className="tab">
+                      {SCRIPT_LABEL[s]}
+                      {n > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#f3e7cf] px-1.5 text-xs font-extrabold leading-none text-[#1b1410] tabular-nums">{n}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {presets.map((p) => (
+                  <button key={p.label} onClick={() => setIds(new Set([...selected, ...p.ids()]))} className={preset}>
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
+                      <path d="M12 5v14M5 12h14" />
+                    </svg>
+                    {p.label}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setIds([...selected].filter((id) => !id.startsWith(script)))}
+                  className={`${quiet} !border-dashed`}
+                >
+                  Kosongkan {SCRIPT_LABEL[script]}
+                </button>
+              </div>
+
+              <div className="mt-6 space-y-8">
+                {(['dasar', 'dakuten', 'yoon'] as const).map((kind) => (
+                  <section key={kind}>
+                    <h3 className="font-display mb-3 text-sm font-extrabold uppercase tracking-[0.18em] text-[#cdb88f]">
+                      {KIND_LABEL[kind]}
+                    </h3>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {cardsFor(script, kind).map((g) => {
+                          const ids = g.kana.map((k) => k.id)
+                          const all = ids.every((i) => selected.has(i))
+                          return (
+                            <div key={g.key} className="rounded-lg border border-[#3a2a20] bg-[#120c09]/80 p-3">
+                              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                                <h4 className="min-w-0 text-sm font-bold leading-tight">{g.title}</h4>
+                                <button
+                                  onClick={() => toggleMany(ids)}
+                                  aria-pressed={all}
+                                  className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded border px-2.5 py-1 text-xs font-semibold transition ${
+                                    all
+                                      ? 'border-sharin/50 bg-sharin/15 text-sharin-glow hover:bg-sharin/25'
+                                      : 'border-[#4d3727] text-[#b9a782] hover:border-[#8a6a4a] hover:bg-[#2a1c14] hover:text-[#ead9b6]'
+                                  }`}
+                                >
+                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                    {all ? <path d="M5 12.5l4.5 4.5L19 7.5" /> : <path d="M12 5v14M5 12h14" />}
+                                  </svg>
+                                  {all ? 'Lepas semua' : 'Pilih semua'}
+                                </button>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
+                                {g.kana.map((k) => {
+                                  const on = selected.has(k.id)
+                                  return (
+                                    <div key={k.id} className="koma-wrap">
+                                      <button
+                                        onClick={() => toggle(k.id)}
+                                        aria-pressed={on}
+                                        aria-label={`${k.char} ${k.romaji[0]}`}
+                                        className={`koma ${on ? 'on' : ''}`}
+                                      >
+                                        <span className={`kana-char font-jp font-bold leading-none ${k.char.length > 1 ? 'kana-wide' : ''}`}>{k.char}</span>
+                                        <span className="rom mt-1.5">{k.romaji[0]}</span>
+                                      </button>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </Step>
+          </ol>
+        </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t-2 border-edge bg-night px-4 py-4">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-          <p className="text-sm text-mute">
-            <b className="text-bone">{settings.selected.length}</b> huruf dipilih
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[#3a2a20] bg-[#0f0a07] px-4 py-4">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
+          <p className="text-sm text-[#cdb88f]">
+            <b className="text-lg text-bone">{count}</b> huruf dipilih
           </p>
-          <button className="btn btn-red" disabled={settings.selected.length === 0} onClick={onStart}>
+          <button className="btn btn-red" disabled={count === 0} onClick={onStart}>
             Mulai latihan
           </button>
         </div>

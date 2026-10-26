@@ -4,6 +4,8 @@ import Sharingan from '../components/Sharingan'
 import Torii from '../components/Torii'
 import { KANA_BY_ID, KIND_LABEL, SCRIPT_LABEL, type Script } from '../lib/kana'
 import { isUnlocked, nodesFor, type PathNode } from '../lib/path'
+import MissionNote from '../components/MissionNote'
+import { ConfirmDialog } from '../components/Modal'
 import { DAILY_GOAL, type Progress } from '../lib/storage'
 
 interface Props {
@@ -16,22 +18,11 @@ interface Props {
   onReset: () => void
 }
 
-const OFFSETS = [0, 44, 66, 44, 0, -44, -66, -44]
-
-function Stars({ n }: { n: number }) {
-  return (
-    <div className="flex gap-0.5">
-      {[1, 2, 3].map((i) => (
-        <svg key={i} viewBox="0 0 24 24" width="16" height="16" className={i <= n ? 'text-gold' : 'text-edge'} fill="currentColor">
-          <path d="M12 2l3 6.9 7.5.7-5.7 5 1.7 7.4L12 18l-6.5 4 1.7-7.4-5.7-5L9 8.9z" />
-        </svg>
-      ))}
-    </div>
-  )
-}
+const KINDS = ['dasar', 'dakuten', 'yoon'] as const
 
 export default function Home({ progress, streak, todayXp, onLesson, onFree, onToggleMute, onReset }: Props) {
   const [script, setScript] = useState<Script>('hiragana')
+  const [askReset, setAskReset] = useState(false)
   const nodes = nodesFor(script)
   const goalPct = Math.min(100, (todayXp / DAILY_GOAL) * 100)
   const total = progress.totalCorrect + progress.totalWrong
@@ -76,83 +67,49 @@ export default function Home({ progress, streak, todayXp, onLesson, onFree, onTo
       </header>
 
       <main className="relative z-10 mx-auto grid max-w-5xl gap-8 px-4 pb-24 pt-6 lg:grid-cols-[1fr_340px]">
-        {/* kolom jalur */}
+        {/* papan misi */}
         <section className="order-2 lg:order-1">
-          <div className="card relative mb-6 overflow-hidden px-6 py-6">
-            <Torii className="absolute -right-4 bottom-0 h-28 text-sharin/20" />
-            <span className="font-jp pointer-events-none absolute -top-6 right-24 text-[9rem] font-black leading-none text-white/[0.03]">
-              読
-            </span>
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-sharin-glow">Jalur Latihan</p>
-            <h1 className="mt-1 text-2xl font-black sm:text-3xl">Buka matamu, baca setiap huruf.</h1>
-            <p className="mt-1 max-w-md text-sm text-mute">
-              Selesaikan pelajaran satu per satu. Setiap node memuat 10 soal dan kamu punya 5 nyawa.
+          <div className="plank relative mb-5 overflow-hidden rounded-xl px-6 py-5">
+            <Torii className="absolute -right-3 bottom-0 h-24 text-black/25" />
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-sharin-glow">Papan Misi</p>
+            <h1 className="mt-1 text-2xl font-black sm:text-3xl">Ambil misi, baca setiap huruf.</h1>
+            <p className="mt-1 max-w-md text-sm text-[#cdb88f]">
+              Pilih satu kertas misi dari papan. Selesaikan 10 soal dan jaga 5 nyawamu untuk mendapat stempel.
             </p>
           </div>
 
-          <div className="mb-8 flex gap-2">
+          <div className="tabs mb-5" role="tablist" aria-label="Pilih papan">
             {(['hiragana', 'katakana'] as Script[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => setScript(s)}
-                className={`btn flex-1 ${script === s ? 'btn-red' : 'btn-ghost'}`}
-              >
-                <span className="font-jp text-base normal-case">{SCRIPT_LABEL[s]}</span>
+              <button key={s} role="tab" aria-selected={script === s} onClick={() => setScript(s)} className="tab">
+                Papan {SCRIPT_LABEL[s]}
               </button>
             ))}
           </div>
 
-          <ol className="flex flex-col items-center">
-            {nodes.map((node, i) => {
-              const stars = progress.completed[node.id] ?? 0
-              const unlocked = isUnlocked(node, progress.completed)
-              const current = unlocked && stars === 0
-              const showHeader = i === 0 || nodes[i - 1].group.kind !== node.group.kind
-              const x = OFFSETS[i % OFFSETS.length]
+          <div className="board">
+            {KINDS.map((kind) => {
+              const group = nodes.filter((n) => n.group.kind === kind)
               return (
-                <li key={node.id} className="flex w-full flex-col items-center">
-                  {showHeader && (
-                    <div className="mb-10 mt-6 flex w-full items-center gap-4">
-                      <div className="h-px flex-1 bg-edge" />
-                      <span className="text-xs font-bold uppercase tracking-[0.2em] text-mute">
-                        {KIND_LABEL[node.group.kind]}
-                      </span>
-                      <div className="h-px flex-1 bg-edge" />
-                    </div>
-                  )}
-                  <div className="mb-5 flex flex-col items-center gap-1.5" style={{ transform: `translateX(${x}px)` }}>
-                    <div className="relative">
-                      {current && (
-                        <span className="absolute -top-9 left-1/2 -translate-x-1/2 animate-float whitespace-nowrap rounded-xl border-2 border-sharin bg-panel px-3 py-1 text-xs font-extrabold text-sharin-glow">
-                          MULAI
-                        </span>
-                      )}
-                      <button
-                        disabled={!unlocked}
-                        onClick={() => onLesson(node)}
-                        aria-label={`Pelajaran ${node.group.label}`}
-                        className={`font-jp relative grid size-20 cursor-pointer place-items-center rounded-full text-4xl font-black transition active:translate-y-1 disabled:cursor-not-allowed ${
-                          !unlocked
-                            ? 'bg-panel-2 text-mute/50 shadow-[0_6px_0_var(--color-edge)]'
-                            : stars
-                              ? 'bg-sharin text-white shadow-[0_6px_0_var(--color-sharin-dark)] hover:brightness-110'
-                              : 'bg-sharin-glow text-white shadow-[0_6px_0_var(--color-sharin-dark)] ring-4 ring-sharin/30 hover:brightness-110'
-                        }`}
-                      >
-                        {unlocked ? node.group.kana[0].char : (
-                          <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor">
-                            <path d="M7 10V8a5 5 0 0110 0v2h1a1 1 0 011 1v9a1 1 0 01-1 1H6a1 1 0 01-1-1v-9a1 1 0 011-1zm2 0h6V8a3 3 0 00-6 0z" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                    <span className="text-xs font-extrabold tracking-widest text-mute">{node.group.label}</span>
-                    {stars > 0 && <Stars n={stars} />}
+                <div key={kind} className="mb-10 last:mb-0">
+                  <div className="plank mx-auto mb-9 w-fit rounded-lg px-5 py-1.5 text-center text-xs font-extrabold uppercase tracking-[0.2em]">
+                    {KIND_LABEL[kind]}
                   </div>
-                </li>
+                  <div className="grid gap-x-6 gap-y-9 sm:grid-cols-2">
+                    {group.map((node) => (
+                      <MissionNote
+                        key={node.id}
+                        node={node}
+                        number={node.index + 1}
+                        stars={progress.completed[node.id] ?? 0}
+                        unlocked={isUnlocked(node, progress.completed)}
+                        onAccept={() => onLesson(node)}
+                      />
+                    ))}
+                  </div>
+                </div>
               )
             })}
-          </ol>
+          </div>
         </section>
 
         {/* kolom samping */}
@@ -178,7 +135,7 @@ export default function Home({ progress, streak, todayXp, onLesson, onFree, onTo
             <p className="relative mt-1 text-sm text-mute">
               Pilih huruf sesukamu, lalu soal acak tanpa henti sampai kamu puas.
             </p>
-            <button onClick={onFree} className="btn btn-red relative mt-4 w-full">
+            <button onClick={onFree} className="btn btn-gold relative mt-4 w-full">
               Atur & Mulai
             </button>
           </div>
@@ -216,7 +173,7 @@ export default function Home({ progress, streak, todayXp, onLesson, onFree, onTo
               </>
             )}
             <button
-              onClick={() => confirm('Hapus semua progres dan statistik?') && onReset()}
+              onClick={() => setAskReset(true)}
               className="mt-5 cursor-pointer text-xs text-mute underline-offset-2 hover:text-sharin-glow hover:underline"
             >
               Reset progres
@@ -224,6 +181,18 @@ export default function Home({ progress, streak, todayXp, onLesson, onFree, onTo
           </div>
         </aside>
       </main>
+
+      <ConfirmDialog
+        open={askReset}
+        title="Hapus semua progres?"
+        message="XP, streak, bintang misi, dan statistik huruf akan dihapus dari perangkat ini. Tindakan ini tidak bisa dibatalkan."
+        confirmLabel="Ya, hapus"
+        onCancel={() => setAskReset(false)}
+        onConfirm={() => {
+          setAskReset(false)
+          onReset()
+        }}
+      />
     </div>
   )
 }

@@ -2,7 +2,8 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-jp: "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-display: "Shippori Mincho", "Noto Serif JP", serif;
+  --font-jp: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
 
   --color-ink: #07070b;
   --color-night: #0d0d14;
@@ -87,36 +88,276 @@ body {
 
 .text-glow { text-shadow: 0 0 28px rgba(214, 40, 57, 0.55); }
 
-/* tombol 3D ala Duolingo */
+/* tombol: plakat pernis/kayu, huruf polos supaya mudah dibaca */
 .btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 1rem;
-  padding: 0.85rem 1.5rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  font-size: 0.875rem;
+  border-radius: 4px;
+  padding: 0.8rem 1.4rem;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  font-size: 0.95rem;
+  line-height: 1.2;
   cursor: pointer;
   transition: transform 0.08s, box-shadow 0.08s, filter 0.15s;
   user-select: none;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
 }
-.btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 transparent !important; }
-.btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.btn-red { background: var(--color-sharin); color: #fff; box-shadow: 0 4px 0 var(--color-sharin-dark); }
-.btn-red:hover:not(:disabled) { filter: brightness(1.1); }
-.btn-green { background: var(--color-ok); color: #06210f; box-shadow: 0 4px 0 var(--color-ok-dark); }
-.btn-green:hover:not(:disabled) { filter: brightness(1.08); }
-.btn-ghost { background: var(--color-panel-2); color: var(--color-bone); box-shadow: 0 4px 0 var(--color-edge); border: 1px solid var(--color-edge); }
-.btn-ghost:hover:not(:disabled) { filter: brightness(1.2); }
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 transparent !important; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-red {
+  background: linear-gradient(#dc3443, #a3141f);
+  color: #fff3e0;
+  border: 1px solid #4d0a11;
+  box-shadow: 0 3px 0 #4d0a11, inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.btn-green {
+  background: linear-gradient(#45975f, #266140);
+  color: #effbe9;
+  border: 1px solid #0f3320;
+  box-shadow: 0 3px 0 #0f3320, inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+.btn-ghost {
+  background: linear-gradient(#3d2b1f, #2a1c14);
+  color: #ead9b6;
+  border: 1px solid #120a06;
+  box-shadow: 0 3px 0 #120a06, inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.btn-ink {
+  background: linear-gradient(#2a211b, #15100d);
+  color: #ead9b6;
+  border: 1px solid #000;
+  box-shadow: 0 3px 0 #000, inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.btn-paper-off {
+  background: #b6ab93;
+  color: #6b5c45;
+  border: 1px solid #8d836d;
+  box-shadow: 0 3px 0 #8d836d;
+}
+.btn-red:hover:not(:disabled), .btn-green:hover:not(:disabled),
+.btn-ghost:hover:not(:disabled), .btn-ink:hover:not(:disabled) { filter: brightness(1.12); }
+.btn-gold {
+  background: linear-gradient(#f3cd75, #c18f2c);
+  color: #2a1a05;
+  border: 1px solid #6b4a10;
+  box-shadow: 0 3px 0 #6b4a10, inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+.btn-gold:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-sm { padding: 0.55rem 0.95rem; font-size: 0.85rem; }
+.btn-on { background: linear-gradient(#dc3443, #a3141f); color: #fff3e0; border-color: #4d0a11; box-shadow: 0 3px 0 #4d0a11, inset 0 1px 0 rgba(255,255,255,.25); }
 
-.card { background: var(--color-panel); border: 1px solid var(--color-edge); border-radius: 1.25rem; }
+.font-display { font-family: var(--font-display); }
+
+.card { background: var(--color-panel); border: 1px solid #3a2a20; border-radius: 0.5rem; box-shadow: inset 0 0 0 3px var(--color-panel), inset 0 0 0 4px rgba(233, 205, 150, 0.12); }
 
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--color-edge); border-radius: 8px; }
 
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
+
+/* ===== papan misi (kōban) ===== */
+.board {
+  position: relative;
+  border-radius: 1.25rem;
+  padding: 1.5rem 1.25rem 2rem;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(214, 40, 57, 0.12), transparent 60%),
+    repeating-linear-gradient(90deg, #17110e 0 6px, #1d1612 6px 7px, #14100d 7px 17px);
+  border: 10px solid #2e1f16;
+  box-shadow:
+    inset 0 0 0 2px #120a06,
+    inset 0 0 50px rgba(0, 0, 0, 0.75),
+    0 14px 34px rgba(0, 0, 0, 0.55);
+}
+.plank {
+  background: linear-gradient(#3b291d, #2a1c14);
+  border: 1px solid #4d3727;
+  box-shadow: 0 4px 0 #160d08, 0 8px 14px rgba(0, 0, 0, 0.45);
+  color: #ead9b6;
+}
+.note {
+  position: relative;
+  color: #1b1410;
+  border-radius: 3px;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 22px, rgba(120, 90, 40, 0.05) 22px 23px),
+    linear-gradient(180deg, #f0e7d2, #e1d6bb);
+  /* sumbu putar ada di pin (tengah atas kertas) */
+  transform-origin: 50% 0;
+  transform: rotate(var(--rot, 0deg));
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.55), inset 0 0 34px rgba(120, 90, 40, 0.16);
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+/* pin tetap di papan; hover pada pembungkus supaya tidak berkedip saat kertas bergerak */
+.note-wrap { position: relative; }
+.note-wrap > .pin { z-index: 3; }
+.note-wrap:hover > .note:not(.note-locked) {
+  transform: rotate(0deg) translateY(-3px);
+  box-shadow: 0 18px 24px rgba(0, 0, 0, 0.55), inset 0 0 34px rgba(120, 90, 40, 0.16);
+}
+.note-locked { filter: grayscale(0.85) brightness(0.62); }
+.pin {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 17px;
+  height: 17px;
+  margin-left: -8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff8a95, #b3202f 55%, #6d0f1a);
+  box-shadow: 0 5px 6px rgba(0, 0, 0, 0.55);
+}
+.stamp {
+  position: absolute;
+  right: 0.6rem;
+  top: 2.6rem;
+  border: 3px solid #b3202f;
+  border-radius: 0.5rem;
+  color: #b3202f;
+  padding: 0.05rem 0.65rem;
+  font-weight: 900;
+  font-size: 1.05rem;
+  letter-spacing: 0.18em;
+  transform: rotate(-12deg);
+  opacity: 0.88;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+  animation: stamp-in 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+@keyframes stamp-in {
+  from { transform: rotate(-12deg) scale(2); opacity: 0; }
+  to { transform: rotate(-12deg) scale(1); opacity: 0.88; }
+}
+
+/* ===== meja latihan (setup) ===== */
+.desk {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(214, 40, 57, 0.14), transparent 55%),
+    repeating-linear-gradient(0deg, #1a130f 0 78px, #0f0a07 78px 80px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 9px),
+    #17100c;
+}
+/* kepingan ala koma shogi */
+.koma-wrap { container-type: inline-size; filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.7)); transition: transform 0.12s; min-width: 0; }
+.koma-wrap:hover { transform: translateY(-3px); }
+.koma-wrap:active { transform: translateY(1px); }
+.koma {
+  width: 100%;
+  aspect-ratio: 64 / 78;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 8%;
+  clip-path: polygon(50% 0, 92% 13%, 100% 100%, 0 100%, 8% 13%);
+  cursor: pointer;
+  background: linear-gradient(#3a2c22, #241912);
+  color: #b9a98e;
+  transition: background 0.15s, color 0.15s;
+}
+.koma.on {
+  background: linear-gradient(#f3e9d2, #dccfb0);
+  color: #1b1410;
+  box-shadow: inset 0 -10px 14px rgba(150, 110, 50, 0.25);
+}
+/* ukuran huruf mengikuti lebar kepingan */
+.koma .kana-char { font-size: 46cqw; }
+.koma .kana-wide { font-size: 36cqw; }
+.koma .rom { font-size: clamp(11px, 15cqw, 16px); font-weight: 600; opacity: 0.8; }
+
+.chip {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 4px;
+  background: #e1d6bb;
+  color: #1b1410;
+  border: 1px solid #8d836d;
+  box-shadow: 0 2px 0 #6f664f;
+  cursor: pointer;
+  transition: transform 0.08s;
+}
+.chip:hover { transform: translateY(-1px); }
+.chip:active { transform: translateY(2px); box-shadow: none; }
+
+/* pilihan jawaban: papan kayu kecil */
+.opt {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem;
+  border-radius: 3px;
+  background: linear-gradient(#35261b, #241912);
+  border: 1px solid #120a06;
+  box-shadow: 0 3px 0 #120a06, inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  font-weight: 800;
+  font-size: 1.25rem;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.08s, filter 0.15s;
+}
+.opt:hover:not(:disabled) { filter: brightness(1.2); }
+.opt:active:not(:disabled) { transform: translateY(3px); box-shadow: none; }
+.opt .num {
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 1px solid rgba(233, 205, 150, 0.45);
+  color: #cdb88f;
+  font-size: 0.7rem;
+}
+.opt-ok { background: linear-gradient(#2c6a46, #1b4630) !important; border-color: #0f3320 !important; }
+.opt-bad { background: linear-gradient(#8f1623, #5d0e17) !important; border-color: #3a0910 !important; }
+.opt-dim { opacity: 0.45; }
+
+@keyframes drift {
+  from { transform: translateX(-60px); }
+  to { transform: translateX(60px); }
+}
+
+@keyframes fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+
+/* tab skrip: tenang, merah penuh dicadangkan untuk aksi utama */
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid #3a2a20;
+  border-radius: 6px;
+  background: #120c09;
+}
+.tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #9c8b70;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tab:hover { color: #ead9b6; }
+.tab[aria-selected='true'] {
+  background: linear-gradient(#54402f, #3d2d21);
+  color: #fff3e0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 6px rgba(0, 0, 0, 0.45);
 }
