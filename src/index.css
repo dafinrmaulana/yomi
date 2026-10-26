@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-jp: "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif;
+
+  --color-ink: #07070b;
+  --color-night: #0d0d14;
+  --color-panel: #15151f;
+  --color-panel-2: #1d1d2b;
+  --color-edge: #2a2a3c;
+  --color-bone: #ece6da;
+  --color-mute: #8c8aa0;
+  --color-sharin: #d62839;
+  --color-sharin-dark: #8f1623;
+  --color-sharin-glow: #ff4d5e;
+  --color-ok: #3ccf7a;
+  --color-ok-dark: #1f8f50;
+  --color-gold: #e9b44c;
+
+  --animate-shake: shake 0.4s ease-in-out;
+  --animate-pop: pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1);
+  --animate-rise: rise 0.28s ease-out;
+  --animate-spin-slow: spin 14s linear infinite;
+  --animate-float: float 3.2s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); }
+  40% { transform: translateX(9px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(4px); }
+}
+@keyframes pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes rise {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes petal {
+  0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.85; }
+  100% { transform: translate3d(var(--drift), 110vh, 0) rotate(540deg); opacity: 0; }
+}
+@keyframes confetti {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate3d(var(--dx), 105vh, 0) rotate(var(--rot)); opacity: 0.9; }
+}
+@keyframes xp-float {
+  0% { transform: translateY(0); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(-46px); opacity: 0; }
+}
+@keyframes glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(214, 40, 57, 0.5)); }
+  50% { filter: drop-shadow(0 0 18px rgba(255, 77, 94, 0.9)); }
+}
+
+html, body, #root { min-height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* seigaiha (ombak) samar sebagai latar */
+.bg-seigaiha {
+  background-color: var(--color-ink);
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(214, 40, 57, 0.12), transparent 55%),
+    radial-gradient(circle at 100% 100%, transparent 28px, rgba(255, 255, 255, 0.025) 29px, rgba(255, 255, 255, 0.025) 31px, transparent 32px),
+    radial-gradient(circle at 0% 100%, transparent 28px, rgba(255, 255, 255, 0.025) 29px, rgba(255, 255, 255, 0.025) 31px, transparent 32px);
+  background-size: 100% 100%, 64px 64px, 64px 64px;
+  background-position: 0 0, 0 0, 32px 32px;
+}
+
+.text-glow { text-shadow: 0 0 28px rgba(214, 40, 57, 0.55); }
+
+/* tombol 3D ala Duolingo */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 1rem;
+  padding: 0.85rem 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: transform 0.08s, box-shadow 0.08s, filter 0.15s;
+  user-select: none;
+}
+.btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 transparent !important; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-red { background: var(--color-sharin); color: #fff; box-shadow: 0 4px 0 var(--color-sharin-dark); }
+.btn-red:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-green { background: var(--color-ok); color: #06210f; box-shadow: 0 4px 0 var(--color-ok-dark); }
+.btn-green:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-ghost { background: var(--color-panel-2); color: var(--color-bone); box-shadow: 0 4px 0 var(--color-edge); border: 1px solid var(--color-edge); }
+.btn-ghost:hover:not(:disabled) { filter: brightness(1.2); }
+
+.card { background: var(--color-panel); border: 1px solid var(--color-edge); border-radius: 1.25rem; }
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-thumb { background: var(--color-edge); border-radius: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+}
