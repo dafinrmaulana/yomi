@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import Petals from '../components/Petals'
 import { GROUPS, KIND_LABEL, SCRIPT_LABEL, groupTitle, type Kana, type Script } from '../lib/kana'
@@ -128,7 +129,8 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
       <Petals count={8} />
       <div className="relative z-10 mx-auto max-w-4xl px-4 pb-32 pt-5">
         <button onClick={onBack} className="btn btn-ghost btn-sm mb-5">
-          ← Kembali
+          <ArrowLeft size={16} strokeWidth={2.5} className="shrink-0" aria-hidden />
+          <span>Kembali</span>
         </button>
 
         <div className="plank mb-8 rounded-xl px-6 py-5">

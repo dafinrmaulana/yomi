@@ -15,6 +15,7 @@ import {
 } from '../lib/quiz'
 import { display, longestPrefix, matchesSequence } from '../lib/romaji'
 import { sfx } from '../lib/sound'
+import { useKeyboard } from '../lib/useKeyboard'
 
 interface Props {
   config: QuizConfig
@@ -30,6 +31,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
   const session = useRef<Record<string, { r: number; w: number }>>({})
   const startedAt = useRef(Date.now())
   const inputRef = useRef<HTMLInputElement>(null)
+  const kb = useKeyboard()
 
   const merged = useCallback(() => {
     const out = { ...stats }
@@ -145,7 +147,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
   }, [])
 
   useEffect(() => {
-    if (status === 'idle' && q.type === 'type') inputRef.current?.focus()
+    if (status === 'idle' && q.type === 'type') inputRef.current?.focus({ preventScroll: true })
   }, [status, q])
 
   const pick = (opt: string) => {
@@ -156,12 +158,20 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
 
   const progress = config.total ? Math.min(100, (answered / config.total) * 100) : null
   const long = q.seq.length > 3
+  // keyboard virtual terbuka: padatkan layout agar kartu soal + input muat di area yang terlihat
+  const compact = kb.open && q.type === 'type'
+  const tiny = compact && kb.height < 420
 
   return (
     <>
     <Scenery moonLevel={level} />
     <Petals count={10} />
-    <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-4 pb-44 pt-4">
+    <div
+      className={`relative z-10 mx-auto flex w-full max-w-2xl flex-col px-4 ${
+        compact ? 'overflow-hidden pb-24 pt-3' : 'min-h-dvh pb-44 pt-4'
+      }`}
+      style={compact ? { height: kb.height } : undefined}
+    >
       {/* bar atas */}
       <div className="flex items-center gap-3">
         <button
@@ -198,8 +208,12 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
       </div>
 
       {/* soal */}
-      <div className="flex flex-1 flex-col items-center justify-center py-8">
-        <p className="mb-6 text-sm font-bold uppercase tracking-[0.2em] text-mute">
+      <div className={`flex min-h-0 flex-1 flex-col items-center justify-center ${compact ? 'py-2' : 'py-8'}`}>
+        <p
+          className={`font-bold uppercase tracking-[0.2em] text-mute ${
+            tiny ? 'hidden' : compact ? 'mb-3 text-xs' : 'mb-6 text-sm'
+          }`}
+        >
           {q.type === 'choice'
             ? 'Pilih bacaan yang benar'
             : config.mode === 'combined'
@@ -209,14 +223,24 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
 
         <div
           key={`${qNo}-${status === 'bad'}`}
-          className={`card relative grid min-w-56 place-items-center px-10 py-8 ${
+          className={`card relative grid min-w-56 place-items-center ${compact ? 'px-8 py-4' : 'px-10 py-8'} ${
             status === 'bad' ? 'animate-shake border-sharin' : status === 'ok' ? 'border-ok' : ''
           }`}
           style={{ boxShadow: '0 0 60px rgba(214, 40, 57, 0.12) inset' }}
         >
           <span
             className={`font-jp font-black leading-none text-glow ${
-              long ? 'text-6xl sm:text-7xl' : q.seq.length > 1 ? 'text-7xl sm:text-8xl' : 'text-9xl'
+              compact
+                ? long
+                  ? 'text-5xl'
+                  : q.seq.length > 1
+                    ? 'text-6xl'
+                    : 'text-7xl'
+                : long
+                  ? 'text-6xl sm:text-7xl'
+                  : q.seq.length > 1
+                    ? 'text-7xl sm:text-8xl'
+                    : 'text-9xl'
             }`}
             style={{ letterSpacing: q.seq.length > 1 ? '0.12em' : undefined }}
           >
@@ -244,7 +268,9 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
             autoCorrect="off"
             spellCheck={false}
             placeholder={config.mode === 'combined' ? 'contoh: sashisu' : 'ketik romaji…'}
-            className="mt-8 w-full max-w-sm rounded-[3px] border-2 border-[#4d3727] bg-[#120c09]/90 px-5 py-4 text-center text-2xl font-bold tracking-wider text-bone outline-none transition placeholder:text-mute/50 focus:border-sharin disabled:opacity-60"
+            className={`w-full max-w-sm rounded-[3px] border-2 border-[#4d3727] bg-[#120c09]/90 px-5 text-center font-bold ${
+              compact ? 'mt-4 py-3 text-xl' : 'mt-8 py-4 text-2xl'
+            } tracking-wider text-bone outline-none transition placeholder:text-mute/50 focus:border-sharin disabled:opacity-60`}
           />
         ) : (
           <div className="mt-8 grid w-full max-w-md grid-cols-2 gap-3">
@@ -271,13 +297,15 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
 
       {/* aksi / banner jawaban */}
       <div
-        className={`fixed inset-x-0 bottom-0 z-20 border-t-2 px-4 py-5 ${
+        className={`fixed inset-x-0 bottom-0 z-20 border-t-2 px-4 ${compact ? 'py-3' : 'py-5'} ${
           status === 'idle'
             ? 'border-[#3a2a20] bg-[#0f0a07]/95'
             : status === 'ok'
               ? 'animate-rise border-ok-dark bg-[#0f2a1b]'
               : 'animate-rise border-sharin-dark bg-[#2b0f14]'
         }`}
+        // iOS: layout viewport tidak mengecil, jadi angkat bar tepat di atas keyboard
+        style={kb.open && kb.inset ? { bottom: kb.inset } : undefined}
       >
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
           {status === 'idle' ? (

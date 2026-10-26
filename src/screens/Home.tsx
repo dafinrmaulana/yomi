@@ -1,3 +1,4 @@
+import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 import Petals from '../components/Petals'
 import AppHeader from '../components/AppHeader'
@@ -44,8 +45,9 @@ export default function Home({ progress, todayXp, onLesson, onFree, onReset }: P
       <main className="relative z-10 mx-auto grid max-w-5xl gap-8 px-4 pb-24 pt-6 lg:grid-cols-[1fr_340px]">
         {/* papan misi */}
         <section className="order-2 lg:order-1">
-          <Link to="/" className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-[#b9a782] transition hover:text-bone">
-            ← Menu utama
+          <Link to="/" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#b9a782] transition hover:text-bone">
+            <ArrowLeft size={16} strokeWidth={2.5} className="shrink-0" aria-hidden />
+            <span>Menu utama</span>
           </Link>
           <div className="plank relative mb-5 overflow-hidden rounded-xl px-6 py-5">
             <Torii className="absolute -right-3 bottom-0 h-24 text-black/25" />

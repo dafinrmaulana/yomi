@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ArrowLeft } from 'lucide-react'
 import { Link } from '../lib/router'
 import AppHeader from './AppHeader'
 import Petals from './Petals'
@@ -22,8 +23,9 @@ export default function Page({ eyebrow, title, lead, back = { to: '/', label: 'M
       <Petals count={10} />
       <AppHeader />
       <main className={`relative z-10 mx-auto px-4 pb-24 pt-6 ${size === 'md' ? 'max-w-3xl' : 'max-w-5xl'}`}>
-        <Link to={back.to} className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-[#b9a782] transition hover:text-bone">
-          ← {back.label}
+        <Link to={back.to} className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#b9a782] transition hover:text-bone">
+          <ArrowLeft size={16} strokeWidth={2.5} className="shrink-0" aria-hidden />
+          <span>{back.label}</span>
         </Link>
         {!bare && (
           <div className="plank mb-8 rounded-xl px-6 py-5">
