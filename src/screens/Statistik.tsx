@@ -133,7 +133,7 @@ export default function Statistik() {
 
       {/* analisis */}
       <Section title="Analisis" aside="Grafik dari riwayat latihanmu">
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid items-start gap-4 lg:grid-cols-2">
           <div className="lg:col-span-2">
             <ActivityChart days={progress.days} />
           </div>

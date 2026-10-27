@@ -50,6 +50,23 @@ function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) 
   )
 }
 
+const SPEED_PREVIEW = 3
+const GROUP_PREVIEW = 4
+
+function MoreToggle({ open, total, preview, onToggle }: { open: boolean; total: number; preview: number; onToggle: () => void }) {
+  if (total <= preview) return null
+  return (
+    <button
+      onClick={onToggle}
+      aria-expanded={open}
+      className={`mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-md border border-edge py-1.5 text-xs font-bold transition hover:text-bone ${TEXT_2}`}
+    >
+      {open ? 'Ringkas' : `Tampilkan semua (${total})`}
+      <span className={`inline-block transition-transform ${open ? 'rotate-180' : ''}`}>▾</span>
+    </button>
+  )
+}
+
 const Empty = ({ children }: { children: React.ReactNode }) => (
   <p className={`py-8 text-center text-sm ${TEXT_2}`}>{children}</p>
 )
@@ -190,6 +207,7 @@ export function ActivityChart({ days }: { days: Record<string, DayStat> }) {
 
 export function SpeedChart({ speed, direction = 'read' }: { speed: Record<string, SpeedStat>; direction?: 'read' | 'write' }) {
   const [hover, setHover] = useState<string | null>(null)
+  const [open, setOpen] = useState(false)
   const limit = slowMs(direction) / 1000
   const rows = Object.entries(speed)
     .filter(([id, v]) => v.n >= 2 && KANA_BY_ID[id])
@@ -212,6 +230,7 @@ export function SpeedChart({ speed, direction = 'read' }: { speed: Record<string
       {rows.length === 0 ? (
         <Empty>Butuh minimal 2 jawaban benar per huruf untuk dihitung.</Empty>
       ) : (
+        <>
         <div className="relative">
           {/* garis batas cepat */}
           <div className="pointer-events-none absolute inset-y-0 left-10 right-16">
@@ -222,7 +241,7 @@ export function SpeedChart({ speed, direction = 'read' }: { speed: Record<string
             </div>
           </div>
           <ul className="space-y-2 pt-5">
-            {rows.map((r) => (
+            {(open ? rows : rows.slice(0, SPEED_PREVIEW)).map((r) => (
               <li
                 key={r.k.id}
                 className="flex cursor-default items-center gap-2 outline-none"
@@ -258,6 +277,8 @@ export function SpeedChart({ speed, direction = 'read' }: { speed: Record<string
             ))}
           </ul>
         </div>
+        <MoreToggle open={open} total={rows.length} preview={SPEED_PREVIEW} onToggle={() => setOpen((o) => !o)} />
+        </>
       )}
     </ChartCard>
   )
@@ -266,6 +287,7 @@ export function SpeedChart({ speed, direction = 'read' }: { speed: Record<string
 /* ---------- 3. Akurasi per kelompok huruf ---------- */
 
 export function GroupChart({ stats }: { stats: Record<string, { r: number; w: number }> }) {
+  const [open, setOpen] = useState(false)
   const rows = (['hiragana', 'katakana'] as Script[])
     .flatMap((script) => GROUPS[script])
     .map((g) => {
@@ -291,8 +313,9 @@ export function GroupChart({ stats }: { stats: Record<string, { r: number; w: nu
       {rows.length === 0 ? (
         <Empty>Belum ada jawaban yang tercatat.</Empty>
       ) : (
-        <ul className="space-y-2">
-          {rows.map((r) => (
+        <>
+        <ul className="space-y-2 pt-5">
+          {(open ? rows : rows.slice(0, GROUP_PREVIEW)).map((r) => (
             <li key={r.g.id} className="flex items-center gap-2" title={`${r.name}: ${Math.round(r.acc * 100)}% dari ${r.n} jawaban`}>
               <span className="w-28 shrink-0 truncate text-xs font-semibold text-bone sm:w-36 sm:text-sm">{r.name}</span>
               <div className="h-5 flex-1">
@@ -302,6 +325,8 @@ export function GroupChart({ stats }: { stats: Record<string, { r: number; w: nu
             </li>
           ))}
         </ul>
+        <MoreToggle open={open} total={rows.length} preview={GROUP_PREVIEW} onToggle={() => setOpen((o) => !o)} />
+        </>
       )}
     </ChartCard>
   )
