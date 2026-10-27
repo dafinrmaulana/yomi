@@ -1,5 +1,5 @@
 import { ALL_KANA, type Kana } from './kana'
-import type { AnswerMode, Direction, QuizMode } from './storage'
+import type { AnswerMode, Direction, QuizMode, SpeedStat } from './storage'
 
 export interface QuizConfig {
   kind: 'path' | 'free' | 'review'
@@ -26,7 +26,7 @@ export interface QuizResult {
   maxCombo: number
   seconds: number
   stats: Record<string, { r: number; w: number }>
-  speed: Record<string, { n: number; ms: number }>
+  speed: Record<string, SpeedStat>
   /** rata-rata detik menjawab benar dalam sesi, null jika tidak ada */
   avgSeconds: number | null
   weak: Kana[]
@@ -43,6 +43,18 @@ export interface Question {
 }
 
 type Stats = Record<string, { r: number; w: number }>
+type Speed = Record<string, SpeedStat>
+
+/** batas "cukup cepat" per huruf (ms); mengetik huruf Jepang lewat IME butuh waktu lebih lama */
+export const slowMs = (direction?: Direction) => (direction === 'write' ? 4000 : 2500)
+
+/** huruf dianggap lambat bila rata-rata beberapa jawaban terakhirnya di atas batas; pulih setelah cepat berkali-kali */
+function slowness(k: Kana, speed: Speed, limit: number): number {
+  const recent = speed[k.id]?.recent
+  if (!recent?.length) return 0
+  const avg = recent.reduce((a, b) => a + b, 0) / recent.length
+  return avg > limit ? avg / limit : 0
+}
 
 const rand = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)]
 
@@ -67,10 +79,25 @@ function isWeak(k: Kana, stats: Stats): boolean {
   return s.w / (s.r + s.w) >= 0.3
 }
 
-function buildDeck(pool: Kana[], stats: Stats, last?: Kana): Kana[] {
-  const extraCap = Math.max(1, Math.floor(pool.length * 0.3))
-  const extras = shuffle(pool.filter((k) => isWeak(k, stats))).slice(0, extraCap)
-  const deck = shuffle([...pool, ...extras])
+/** huruf yang jarang/belum pernah dilatih: 0 bila sudah >= 3 jawaban, makin besar makin kurang latihan */
+function freshness(k: Kana, stats: Stats): number {
+  const n = (stats[k.id]?.r ?? 0) + (stats[k.id]?.w ?? 0)
+  return n >= 3 ? 0 : ((3 - n) / 3) * 2
+}
+
+function buildDeck(pool: Kana[], stats: Stats, speed: Speed, limit: number, last?: Kana): Kana[] {
+  const extraCap = Math.max(1, Math.floor(pool.length * 0.4))
+  // kurang latihan, sering salah, atau lambat dibaca -> dapat kartu tambahan; yang paling butuh didahulukan
+  const need = (k: Kana) => freshness(k, stats) + (isWeak(k, stats) ? 1 : 0) + slowness(k, speed, limit)
+  const extras = shuffle(pool.filter((k) => need(k) > 0))
+    .sort((a, b) => need(b) - need(a))
+    .slice(0, extraCap)
+  // kartu diambil dari ujung belakang; huruf kurang latihan diberi bobot agar cenderung keluar lebih awal
+  // supaya mereka kebagian tampil walau sesi dihentikan sebelum putaran habis
+  const deck = [...pool, ...extras]
+    .map((k) => ({ k, key: Math.random() + (freshness(k, stats) > 0 ? 0.6 : 0) }))
+    .sort((a, b) => a.key - b.key)
+    .map((x) => x.k)
   // kartu tambahan jangan bersebelahan dengan kartu aslinya
   for (let i = 1; i < deck.length; i++) {
     if (deck[i].id !== deck[i - 1].id) continue
@@ -87,10 +114,10 @@ function buildDeck(pool: Kana[], stats: Stats, last?: Kana): Kana[] {
   return deck
 }
 
-function draw(pool: Kana[], stats: Stats, prev?: Kana): Kana {
+function draw(pool: Kana[], stats: Stats, speed: Speed, limit: number, prev?: Kana): Kana {
   let deck = decks.get(pool)
   if (!deck || deck.length === 0) {
-    deck = buildDeck(pool, stats, prev)
+    deck = buildDeck(pool, stats, speed, limit, prev)
     decks.set(pool, deck)
   }
   // hindari huruf yang sama berturut-turut bila masih ada pilihan lain di kocokan
@@ -105,11 +132,25 @@ const lastDrawn = new WeakMap<QuizConfig, Kana>()
 
 export const questionXp = (len: number) => 10 + (len - 1) * 4
 
-export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string): Question {
+/**
+ * Huruf yang baru dijawab lambat disisipkan lagi beberapa kartu ke depan di kocokan yang sedang berjalan,
+ * supaya cepat muncul lagi (tidak menunggu putaran berikutnya).
+ */
+export function requeue(cfg: QuizConfig, k: Kana) {
+  const pool = cfg.pool.some((p) => p.id === k.id) ? cfg.pool : cfg.review
+  const deck = decks.get(pool)
+  if (!deck || deck.length < 2) return
+  if (deck.slice(-8).some((c) => c.id === k.id)) return
+  const gap = 3 + Math.floor(Math.random() * 4)
+  deck.splice(Math.max(0, deck.length - gap), 0, k)
+}
+
+export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string, speed: Speed = {}): Question {
+  const limit = slowMs(cfg.direction)
   const pickOne = (): Kana => {
     const prev = lastDrawn.get(cfg)
     const k =
-      cfg.review.length && Math.random() < 0.3 ? draw(cfg.review, stats, prev) : draw(cfg.pool, stats, prev)
+      cfg.review.length && Math.random() < 0.3 ? draw(cfg.review, stats, speed, limit, prev) : draw(cfg.pool, stats, speed, limit, prev)
     lastDrawn.set(cfg, k)
     return k
   }

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Calendar from '../components/Calendar'
+import { ActivityChart, GroupChart, LetterHistory, SpeedChart } from '../components/charts'
 import { Modal } from '../components/Modal'
 import Page from '../components/Page'
 import { useApp } from '../lib/app-context'
@@ -34,17 +35,13 @@ export default function Statistik() {
   const { progress } = useApp()
   const [script, setScript] = useState<Script>('hiragana')
   const [picked, setPicked] = useState<string | null>(null)
+  const [letter, setLetter] = useState<string | null>(null)
 
   const { rank, next, pct, index } = rankFor(progress.xp)
   const total = progress.totalCorrect + progress.totalWrong
   const acc = total ? Math.round((progress.totalCorrect / total) * 100) : null
   const speedN = Object.values(progress.speed).reduce((a, v) => a + v.n, 0)
   const avgSec = speedN ? Object.values(progress.speed).reduce((a, v) => a + v.ms, 0) / speedN / 1000 : null
-  const slowest = Object.entries(progress.speed)
-    .filter(([id, v]) => v.n >= 2 && KANA_BY_ID[id])
-    .map(([id, v]) => ({ k: KANA_BY_ID[id], sec: v.ms / v.n / 1000 }))
-    .sort((a, b) => b.sec - a.sec)
-    .slice(0, 8)
   const earned = BADGES.filter((b) => b.earned(progress))
   const day = picked ? progress.days[picked] : undefined
 
@@ -96,7 +93,7 @@ export default function Statistik() {
       </Section>
 
       {/* peta penguasaan */}
-      <Section title="Penguasaan huruf" aside="Berdasarkan akurasi jawabanmu">
+      <Section title="Penguasaan huruf" aside="Ketuk huruf untuk melihat riwayatnya">
         <div className="tabs mb-4 max-w-md" role="tablist" aria-label="Pilih skrip">
           {(['hiragana', 'katakana'] as Script[]).map((s) => (
             <button key={s} role="tab" aria-selected={script === s} onClick={() => setScript(s)} className="tab">
@@ -114,13 +111,15 @@ export default function Statistik() {
             const sp = progress.speed[k.id]
             const sec = sp ? ` · rata-rata ${(sp.ms / sp.n / 1000).toFixed(1)} dtk` : ''
             return (
-              <div
+              <button
                 key={k.id}
+                onClick={() => setLetter(k.id)}
+                aria-label={`Riwayat ${k.char}`}
                 title={a === null ? `${k.char} (${k.romaji[0]}): belum dilatih` : `${k.char} (${k.romaji[0]}): ${Math.round(a * 100)}% benar dari ${n} jawaban${sec}`}
-                className={`font-jp grid aspect-square place-items-center rounded-lg border text-xl font-bold ${tone}`}
+                className={`font-jp grid aspect-square cursor-pointer place-items-center rounded-lg border text-xl font-bold transition hover:scale-105 hover:brightness-125 ${tone}`}
               >
                 {k.char}
-              </div>
+              </button>
             )
           })}
         </div>
@@ -132,19 +131,16 @@ export default function Statistik() {
         </div>
       </Section>
 
-      {/* kecepatan baca */}
-      {slowest.length > 0 && (
-        <Section title="Huruf paling lambat" aside="Rata-rata waktu menjawab benar">
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {slowest.map(({ k, sec }) => (
-              <li key={k.id} className="card flex items-center justify-between px-4 py-3">
-                <span className="font-jp text-2xl font-bold">{k.char}</span>
-                <span className="text-sm font-bold tabular-nums text-gold">{sec.toFixed(1)} dtk</span>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      )}
+      {/* analisis */}
+      <Section title="Analisis" aside="Grafik dari riwayat latihanmu">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="lg:col-span-2">
+            <ActivityChart days={progress.days} />
+          </div>
+          <SpeedChart speed={progress.speed} />
+          <GroupChart stats={progress.stats} />
+        </div>
+      </Section>
 
       {/* lencana */}
       <Section title="Lencana" aside={`${earned.length} dari ${BADGES.length}`}>
@@ -202,6 +198,20 @@ export default function Statistik() {
         ) : (
           <p>Tidak ada latihan di hari ini.</p>
         )}
+      </Modal>
+
+      <Modal
+        open={letter !== null}
+        title={letter ? `${KANA_BY_ID[letter].char} · ${KANA_BY_ID[letter].romaji[0]}` : ''}
+        onClose={() => setLetter(null)}
+        wide
+        footer={
+          <button className="btn btn-ghost" onClick={() => setLetter(null)}>
+            Tutup
+          </button>
+        }
+      >
+        {letter && <LetterHistory id={letter} history={progress.history[letter] ?? []} />}
       </Modal>
     </Page>
   )

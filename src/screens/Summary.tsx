@@ -3,6 +3,7 @@ import Petals from '../components/Petals'
 import Scenery from '../components/Scenery'
 import Sharingan from '../components/Sharingan'
 import type { QuizResult } from '../lib/quiz'
+import { useRouter } from '../lib/router'
 
 interface Props {
   result: QuizResult
@@ -14,6 +15,7 @@ interface Props {
 const fmtTime = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`)
 
 export default function Summary({ result, bonusXp, onRetry, onBack }: Props) {
+  const { navigate } = useRouter()
   const { correct, wrong, failed, config } = result
   const total = correct + wrong
   const acc = total ? Math.round((correct / total) * 100) : 0
@@ -99,12 +101,15 @@ export default function Summary({ result, bonusXp, onRetry, onBack }: Props) {
 
         <div className="mt-8 flex gap-3">
           <button className="btn btn-ghost flex-1" onClick={onBack}>
-            Kembali
+            {config.kind === 'free' ? 'Ke Latihan Bebas' : config.kind === 'review' ? 'Ke Ulangan' : 'Ke Papan Misi'}
           </button>
           <button className="btn btn-red flex-1" onClick={onRetry}>
             {config.kind === 'path' ? (failed ? 'Coba lagi' : 'Ulangi') : 'Latihan lagi'}
           </button>
         </div>
+        <button className="btn btn-ghost mt-3 w-full" onClick={() => navigate('/stats')}>
+          Lihat statistik
+        </button>
       </div>
     </div>
   )

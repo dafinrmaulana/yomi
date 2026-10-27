@@ -94,6 +94,7 @@ function Routes() {
         key={quiz.run}
         config={quiz.config}
         stats={progress.stats}
+        speed={progress.speed}
         mute={progress.mute}
         onFinish={finish}
         onExit={() => back(returnPath(quiz.config))}

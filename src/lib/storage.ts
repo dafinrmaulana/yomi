@@ -27,6 +27,27 @@ export interface SrsCard {
   due: string
 }
 
+/** waktu menjawab benar per huruf: total untuk rata-rata, recent = beberapa jawaban terakhir (ms) */
+export interface SpeedStat {
+  n: number
+  ms: number
+  recent?: number[]
+}
+
+export const SPEED_WINDOW = 3
+
+/** satu titik riwayat sebuah huruf: hasilnya dalam satu sesi latihan */
+export interface SessionPoint {
+  at: number
+  r: number
+  w: number
+  /** rata-rata ms menjawab benar di sesi itu; kosong bila tidak ada jawaban benar */
+  ms?: number
+}
+
+/** riwayat sesi yang disimpan per huruf */
+export const HISTORY_LIMIT = 30
+
 export interface Progress {
   xp: number
   dayStreak: number
@@ -43,7 +64,8 @@ export interface Progress {
   completed: Record<string, number>
   stats: Record<string, { r: number; w: number }>
   /** total waktu (ms) dan jumlah jawaban benar yang diukur, per huruf */
-  speed: Record<string, { n: number; ms: number }>
+  speed: Record<string, SpeedStat>
+  history: Record<string, SessionPoint[]>
   totalCorrect: number
   totalWrong: number
   mute: boolean
@@ -88,6 +110,7 @@ const defaults = (): Progress => ({
   completed: {},
   stats: {},
   speed: {},
+  history: {},
   totalCorrect: 0,
   totalWrong: 0,
   mute: false,
@@ -117,7 +140,7 @@ export interface SessionResult {
   correct: number
   wrong: number
   stats: Record<string, { r: number; w: number }>
-  speed?: Record<string, { n: number; ms: number }>
+  speed?: Record<string, SpeedStat>
   completedNode?: { id: string; stars: number }
 }
 
@@ -172,7 +195,18 @@ export function useProgress() {
       next.speed = { ...next.speed }
       for (const [id, s] of Object.entries(res.speed ?? {})) {
         const old = next.speed[id] ?? { n: 0, ms: 0 }
-        next.speed[id] = { n: old.n + s.n, ms: old.ms + s.ms }
+        next.speed[id] = {
+          n: old.n + s.n,
+          ms: old.ms + s.ms,
+          recent: [...(old.recent ?? []), ...(s.recent ?? [])].slice(-SPEED_WINDOW),
+        }
+      }
+      next.history = { ...next.history }
+      for (const [id, s] of Object.entries(res.stats)) {
+        if (s.r + s.w === 0) continue
+        const sp = res.speed?.[id]
+        const point: SessionPoint = { at: Date.now(), r: s.r, w: s.w, ms: sp?.n ? sp.ms / sp.n : undefined }
+        next.history[id] = [...(next.history[id] ?? []), point].slice(-HISTORY_LIMIT)
       }
       if (res.completedNode) {
         const { id, stars } = res.completedNode

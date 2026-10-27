@@ -9,6 +9,8 @@ import {
   checkKana,
   isChoiceAnswer,
   makeQuestion,
+  requeue,
+  slowMs,
   pickPraise,
   promptRomaji,
   questionXp,
@@ -19,11 +21,13 @@ import {
 } from '../lib/quiz'
 import { display, longestPrefix, matchesSequence } from '../lib/romaji'
 import { sfx } from '../lib/sound'
+import { SPEED_WINDOW, type SpeedStat } from '../lib/storage'
 import { useKeyboard } from '../lib/useKeyboard'
 
 interface Props {
   config: QuizConfig
   stats: Record<string, { r: number; w: number }>
+  speed: Record<string, SpeedStat>
   mute: boolean
   onFinish: (r: QuizResult) => void
   onExit: () => void
@@ -33,19 +37,17 @@ interface Props {
 
 type Status = 'idle' | 'ok' | 'bad'
 
-const MAX_MS = 20000
-
-function avgSeconds(speed: Record<string, { n: number; ms: number }>) {
+function avgSeconds(speed: Record<string, SpeedStat>) {
   const all = Object.values(speed)
   const n = all.reduce((a, s) => a + s.n, 0)
   return n ? all.reduce((a, s) => a + s.ms, 0) / n / 1000 : null
 }
 
-export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMode }: Props) {
+export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, onExit, onSwitchMode }: Props) {
   const session = useRef<Record<string, { r: number; w: number }>>({})
   const startedAt = useRef(Date.now())
   const shownAt = useRef(Date.now())
-  const speed = useRef<Record<string, { n: number; ms: number }>>({})
+  const speed = useRef<Record<string, SpeedStat>>({})
   const kb = useKeyboard()
   const direction = config.direction ?? 'read'
   const write = direction === 'write'
@@ -59,7 +61,16 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
     return out
   }, [stats])
 
-  const [q, setQ] = useState<Question>(() => makeQuestion(config, stats))
+  const mergedSpeed = useCallback(() => {
+    const out = { ...pastSpeed }
+    for (const [id, s] of Object.entries(speed.current)) {
+      const o = out[id] ?? { n: 0, ms: 0 }
+      out[id] = { n: o.n + s.n, ms: o.ms + s.ms, recent: [...(o.recent ?? []), ...(s.recent ?? [])].slice(-SPEED_WINDOW) }
+    }
+    return out
+  }, [pastSpeed])
+
+  const [q, setQ] = useState<Question>(() => makeQuestion(config, stats, undefined, pastSpeed))
   const [qNo, setQNo] = useState(1)
   const [parts, setParts] = useState<string[]>([])
   const answer = parts.join('')
@@ -117,16 +128,18 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
     })
 
     if (ok) {
-      // waktu berpikir dibagi rata ke tiap huruf; jeda >20 dtk dianggap melamun
-      const each = Math.min(Date.now() - shownAt.current, MAX_MS) / q.seq.length
+      // waktu berpikir dibagi rata ke tiap huruf, tanpa batas atas
+      const each = (Date.now() - shownAt.current) / q.seq.length
       for (const k of q.seq) {
-        const s = (speed.current[k.id] ??= { n: 0, ms: 0 })
+        const s = (speed.current[k.id] ??= { n: 0, ms: 0, recent: [] })
         s.n++
         s.ms += each
+        s.recent = [...(s.recent ?? []), each].slice(-SPEED_WINDOW)
+        if (each > slowMs(config.direction)) requeue(config, k)
       }
       const gain = questionXp(q.seq.length)
       setStatus('ok')
-      setLastMs(Math.min(Date.now() - shownAt.current, MAX_MS))
+      setLastMs(Date.now() - shownAt.current)
       setPraise(pickPraise())
       setCorrect((c) => c + 1)
       setXp((x) => x + gain)
@@ -166,7 +179,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
     if (config.hearts && hearts <= 0) return finish(true)
     if (config.total !== null && answered >= config.total) return finish(false)
     const key = q.seq.map((k) => k.id).join()
-    setQ(makeQuestion(config, merged(), key))
+    setQ(makeQuestion(config, merged(), key, mergedSpeed()))
     setQNo((n) => n + 1)
     setParts([])
     setPicked(null)
@@ -174,6 +187,14 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
     setXpPop(null)
     shownAt.current = Date.now()
   }
+
+  const exit = () => {
+    if (answered > 0 && !window.confirm('Keluar tanpa menyimpan? Progres sesi ini akan hilang.')) return
+    onExit()
+  }
+
+  // pelajaran misi harus dituntaskan; sesi lain boleh diakhiri kapan saja setelah menjawab
+  const canFinish = config.kind !== 'path' && answered > 0
 
   const switchMode = () => {
     if (!onSwitchMode) return
@@ -239,12 +260,12 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
       style={compact ? { height: kb.height } : undefined}
     >
       {/* bar atas */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         <button
-          onClick={() => (config.total === null && answered > 0 ? finish(false) : onExit())}
+          onClick={exit}
           className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-xl text-mute transition hover:bg-panel-2 hover:text-bone"
-          aria-label={config.total === null ? 'Selesai' : 'Keluar'}
-          title={config.total === null ? 'Selesai' : 'Keluar'}
+          aria-label="Keluar tanpa menyimpan"
+          title="Keluar tanpa menyimpan"
         >
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
             <path d="M6 6l12 12M18 6L6 18" />
@@ -259,30 +280,32 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
             />
           </div>
         ) : (
-          <div className="flex-1 text-sm font-semibold text-mute">
-            Soal #{qNo} · <span className="text-ok">{correct} benar</span> ·{' '}
-            <span className="text-sharin-glow">{wrong} salah</span>
-          </div>
+          <div className="flex-1" />
         )}
 
         {onSwitchMode && (
           <button
             onClick={switchMode}
             title="Ganti mode (Tab)"
-            className="cursor-pointer rounded-lg border border-[#4d3727] px-3 py-1.5 text-xs font-bold text-mute transition hover:border-sharin hover:text-bone"
+            className="cursor-pointer shrink-0 rounded-lg border border-[#4d3727] px-2.5 py-1.5 text-xs font-bold text-mute transition hover:border-sharin hover:text-bone"
           >
-            {config.mode === 'single' ? 'Per huruf' : 'Gabungan'} ⇄{' '}
-            <span className="hidden sm:inline">{config.mode === 'single' ? 'Gabungan' : 'Per huruf'} · Tab</span>
+            <span className="hidden sm:inline">{config.mode === 'single' ? 'Per huruf' : 'Gabungan'} </span>⇄
+            <span className="hidden sm:inline"> {config.mode === 'single' ? 'Gabungan' : 'Per huruf'} · Tab</span>
+          </button>
+        )}
+        {canFinish && (
+          <button onClick={() => finish(false)} className="btn btn-ghost shrink-0 !px-3 !py-1.5 !text-xs" title="Akhiri sesi dan lihat hasil">
+            Selesai
           </button>
         )}
         {config.hearts && <Hearts left={hearts} />}
         <div
-          className="min-w-14 rounded-lg border border-[#4d3727] px-2 py-1 text-center text-sm font-extrabold tabular-nums text-bone"
+          className="min-w-12 shrink-0 rounded-lg border border-[#4d3727] px-1.5 py-1 text-center text-sm font-extrabold tabular-nums text-bone"
           title="Waktu soal ini"
         >
-          {(Math.min(elapsed, MAX_MS) / 1000).toFixed(1)}s
+          {(elapsed / 1000).toFixed(1)}s
         </div>
-        <div className="flex items-center gap-1.5" title={`Combo ${combo}`}>
+        <div className="flex shrink-0 items-center gap-1.5" title={`Combo ${combo}`}>
           <Sharingan level={level} size={30} />
           <span className="min-w-5 text-sm font-extrabold tabular-nums">{combo}</span>
           <span className="hidden text-[10px] font-bold uppercase tracking-widest text-mute sm:inline">Combo</span>
@@ -291,6 +314,9 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
 
       {/* soal */}
       <div className={`flex min-h-0 flex-1 flex-col items-center justify-center ${compact ? 'py-2' : 'py-8'}`}>
+        {config.total === null && (
+          <p className={`font-semibold text-mute ${tiny ? 'hidden' : compact ? 'mb-2 text-xs' : 'mb-4 text-sm'}`}>Soal ke-{qNo}</p>
+        )}
         <p
           className={`font-bold uppercase tracking-[0.2em] text-mute ${
             tiny ? 'hidden' : compact ? 'mb-3 text-xs' : 'mb-6 text-sm'
