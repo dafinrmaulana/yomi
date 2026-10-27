@@ -1,11 +1,15 @@
 import { ArrowLeft } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
+import AdviceCard from '../components/AdviceCard'
 import Petals from '../components/Petals'
+import { adviceFor, applyAction } from '../lib/advice'
 import { GROUPS, KIND_LABEL, SCRIPT_LABEL, groupTitle, type Kana, type Script } from '../lib/kana'
-import type { AnswerMode, Direction, FreeSettings } from '../lib/storage'
+import type { AnswerMode, Direction, FreeSettings, SpeedStat } from '../lib/storage'
 
 interface Props {
   settings: FreeSettings
+  stats: Record<string, { r: number; w: number }>
+  speed: Record<string, SpeedStat>
   onChange: (s: FreeSettings) => void
   onStart: () => void
   onBack: () => void
@@ -94,7 +98,7 @@ function cardsFor(script: Script, kind: 'dasar' | 'dakuten' | 'yoon'): Card[] {
     })
 }
 
-export default function Setup({ settings, onChange, onStart, onBack }: Props) {
+export default function Setup({ settings, stats, speed, onChange, onStart, onBack }: Props) {
   const [script, setScript] = useState<Script>('hiragana')
   const selected = new Set(settings.selected)
   const set = (patch: Partial<FreeSettings>) => onChange({ ...settings, ...patch })
@@ -135,6 +139,7 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
         { v: 'mix', title: 'Campur', desc: 'Selang-seling ketik dan pilihan.' },
       ]
   const count = settings.selected.length
+  const advice = adviceFor(settings, stats, speed)[0]
 
   return (
     <div className="desk relative min-h-dvh">
@@ -150,6 +155,12 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
           <h1 className="font-display mt-1 text-3xl font-extrabold">Meja Latihan</h1>
           <p className="mt-1 text-sm text-[#cdb88f]">Ikuti empat langkah di bawah, lalu soal muncul acak sampai kamu puas.</p>
         </div>
+
+        {advice && (
+          <div className="mb-8">
+            <AdviceCard advice={advice} onApply={(a) => onChange(applyAction(settings, a))} />
+          </div>
+        )}
 
         <div className="relative">
           {/* garis timeline */}

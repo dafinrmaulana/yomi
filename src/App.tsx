@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
+import { applyAction, type AdviceAction } from './lib/advice'
 import { AppContext } from './lib/app-context'
 import { GROUPS } from './lib/kana'
 import { lessonConfig, type PathNode } from './lib/path'
 import type { QuizConfig, QuizResult } from './lib/quiz'
 import { RouterProvider, useRouter } from './lib/router'
-import { useProgress } from './lib/storage'
+import { useProgress, type FreeSettings } from './lib/storage'
 import Home from './screens/Home'
 import Hub from './screens/Hub'
 import Quiz from './screens/Quiz'
@@ -48,13 +49,12 @@ function Routes() {
     )
   }
 
-  const startFree = () => {
-    const s = progress.free
+  const freeConfig = (s: FreeSettings): QuizConfig => {
     const ids = new Set(s.selected)
     const pool = Object.values(GROUPS)
       .flatMap((gs) => gs.flatMap((g) => g.kana))
       .filter((k) => ids.has(k.id))
-    startQuiz({
+    return {
       kind: 'free',
       title: 'Latihan Bebas',
       pool,
@@ -65,7 +65,16 @@ function Routes() {
       direction: s.direction ?? 'read',
       total: null,
       hearts: false,
-    })
+    }
+  }
+
+  const startFree = () => startQuiz(freeConfig(progress.free))
+
+  // saran dari dalam game: ubah pengaturan dan lanjutkan sesi yang sama (skor tidak direset)
+  const applyAdvice = (action: AdviceAction) => {
+    const next = applyAction(progress.free, action)
+    patch({ free: next })
+    setQuiz((q) => (q && q.config.kind === 'free' ? { ...q, config: freeConfig(next) } : q))
   }
 
   const finish = (result: QuizResult) => {
@@ -99,6 +108,7 @@ function Routes() {
         onFinish={finish}
         onExit={() => back(returnPath(quiz.config))}
         onSwitchMode={quiz.config.kind === 'free' ? () => switchMode(quiz.config) : undefined}
+        onApplyAdvice={quiz.config.kind === 'free' ? applyAdvice : undefined}
       />
     )
   else if (path === '/result' && summary)
@@ -121,7 +131,7 @@ function Routes() {
       />
     )
   else if (path === '/practice')
-    screen = <Setup settings={progress.free} onChange={(free) => patch({ free })} onStart={startFree} onBack={() => back('/missions')} />
+    screen = <Setup settings={progress.free} stats={progress.stats} speed={progress.speed} onChange={(free) => patch({ free })} onStart={startFree} onBack={() => back('/missions')} />
   else if (path === '/write') screen = <Tulis />
   else if (isWrite) screen = <TulisDetail hex={path.slice('/write/'.length)} />
   else if (path === '/review') screen = <Ulang onStart={(c) => startQuiz(c)} />
