@@ -9,6 +9,8 @@ interface Props {
   compact?: boolean
   /** arah tulis: tiap kotak diisi huruf Jepang lewat IME */
   write?: boolean
+  /** mode kata nyata: pembagian kata; arti tiap kata muncul di bawah preview setelah katanya lengkap */
+  words?: { meaning: string; len: number }[]
 }
 
 /** pindah otomatis bila isi kotak sudah pasti utuh (tidak ada romaji lain yang lebih panjang) */
@@ -24,7 +26,7 @@ const atEdge = (el: HTMLInputElement, edge: 'start' | 'end') =>
   el.selectionStart === el.selectionEnd && el.selectionStart === (edge === 'start' ? 0 : el.value.length)
 
 /** satu kotak per huruf (seperti kode OTP), dengan pratinjau gabungan jawaban di atasnya */
-export default function AnswerBoxes({ seq, values, onChange, disabled, compact, write }: Props) {
+export default function AnswerBoxes({ seq, values, onChange, disabled, compact, write, words }: Props) {
   const refs = useRef<(HTMLInputElement | null)[]>([])
   const composing = useRef(false)
   const key = seq.map((k) => k.id).join()
@@ -64,16 +66,49 @@ export default function AnswerBoxes({ seq, values, onChange, disabled, compact, 
   const joined = seq.map((_, i) => values[i] ?? '').join('')
 
   return (
-    <div className={`flex w-full max-w-md flex-col items-center ${compact ? 'mt-3 gap-2' : 'mt-8 gap-3'}`}>
-      {seq.length > 1 && (
-        <p
-          className={`min-h-9 text-center font-bold tracking-[0.18em] ${compact ? 'text-xl' : 'text-3xl'} ${write ? 'font-jp' : ''} ${joined ? 'text-bone' : 'text-mute/40'}`}
-          aria-live="polite"
-        >
-          {joined || (write ? 'huruf Jepang…' : 'romaji…')}
-        </p>
+    <div className={`flex w-fit max-w-[min(100%,28rem)] flex-col items-start sm:items-center ${compact ? 'mt-3 gap-2' : 'mt-8 gap-3'}`}>
+      {words ? (
+        <div className="flex flex-wrap items-start justify-start gap-x-4 gap-y-2 sm:justify-center" aria-live="polite">
+          {words.map((w, wi) => {
+            const from = words.slice(0, wi).reduce((a, x) => a + x.len, 0)
+            const text = seq.slice(from, from + w.len).map((_, i) => values[from + i] ?? '').join('')
+            const complete = seq.slice(from, from + w.len).every((k, i) => {
+              const v = (values[from + i] ?? '').toLowerCase()
+              return write ? v === k.char : k.romaji.includes(v)
+            })
+            return (
+              <div key={wi} className="flex flex-col items-start sm:items-center">
+                <span
+                  className={`rounded-[3px] px-1 font-bold tracking-[0.12em] transition-colors ${compact ? 'min-h-7 text-xl' : 'min-h-9 text-3xl'} ${write ? 'font-jp' : ''} ${
+                    text ? 'text-bone' : 'text-mute/40'
+                  }`}
+                  // sorot ala stabilo di separuh bawah kata, hanya setelah kata itu benar
+                  style={
+                    complete
+                      ? { background: 'linear-gradient(transparent 45%, rgba(233, 180, 76, 0.5) 45%, rgba(233, 180, 76, 0.5) 92%, transparent 92%)' }
+                      : undefined
+                  }
+                >
+                  {text || '…'}
+                </span>
+                <span className={`px-1 text-xs font-semibold text-[#cdb88f] transition-opacity duration-300 ${complete ? 'opacity-100' : 'opacity-0'}`}>
+                  {w.meaning}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        seq.length > 1 && (
+          <p
+            className={`min-h-9 break-all text-left font-bold sm:text-center tracking-[0.18em] ${compact ? 'text-xl' : 'text-3xl'} ${write ? 'font-jp' : ''} ${joined ? 'text-bone' : 'text-mute/40'}`}
+            aria-live="polite"
+          >
+            {joined || (write ? 'huruf Jepang…' : 'romaji…')}
+          </p>
+        )
       )}
-      <div className="flex flex-wrap justify-center gap-2">
+      <div className={`flex flex-wrap justify-start sm:justify-center ${seq.length > 10 ? 'gap-1.5' : 'gap-2'}`}>
         {seq.map((_, i) => (
           <input
             key={`${key}-${i}`}
@@ -98,7 +133,7 @@ export default function AnswerBoxes({ seq, values, onChange, disabled, compact, 
             spellCheck={false}
             lang={write ? 'ja' : undefined}
             className={`rounded-[3px] border-2 border-[#4d3727] bg-[#120c09]/90 text-center font-bold text-bone outline-none transition focus:border-sharin disabled:opacity-60 ${write ? 'font-jp' : ''} ${
-              compact ? 'h-12 w-12 text-xl' : 'h-16 w-14 text-2xl'
+              seq.length > 10 ? 'h-11 w-10 text-base' : compact ? 'h-12 w-12 text-xl' : 'h-16 w-14 text-2xl'
             }`}
           />
         ))}

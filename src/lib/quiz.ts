@@ -1,4 +1,5 @@
 import { ALL_KANA, type Kana } from './kana'
+import { pickWords } from './words'
 import type { AnswerMode, Direction, QuizMode, SpeedStat } from './storage'
 
 export interface QuizConfig {
@@ -15,6 +16,8 @@ export interface QuizConfig {
   /** jumlah soal; null = tanpa henti */
   total: number | null
   hearts: boolean
+  /** rangkaian disusun dari kata nyata bila pool memungkinkan */
+  words?: boolean
   nodeId?: string
 }
 
@@ -40,6 +43,8 @@ export interface Question {
   type: 'type' | 'choice'
   /** romaji (arah baca) atau huruf Jepang (arah tulis) */
   options: string[]
+  /** pembagian rangkaian jadi kata beserta artinya (hanya mode kata nyata) */
+  words?: { meaning: string; len: number }[]
 }
 
 type Stats = Record<string, { r: number; w: number }>
@@ -156,6 +161,10 @@ export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string, s
   }
 
   const len = cfg.mode === 'single' ? 1 : cfg.length
+  if (cfg.words && cfg.mode === 'combined') {
+    const w = pickWords([...cfg.pool, ...cfg.review], stats, len, avoidKey)
+    if (w) return { seq: w.seq, type: 'type', options: [], words: w.words }
+  }
   let seq: Kana[] = Array.from({ length: len }, pickOne)
   // soal yang persis sama dengan sebelumnya: ambil ulang sekali (kocokan tetap berjalan)
   if (avoidKey && seq.map((k) => k.id).join() === avoidKey && cfg.pool.length > 1) {

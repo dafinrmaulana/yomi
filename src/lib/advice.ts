@@ -10,6 +10,7 @@ export type AdviceAction =
   | { kind: 'letters'; ids: string[]; replace: boolean; label: string }
 
 export interface Advice {
+  kind: 'up' | 'focus'
   /** berubah saat pengaturan berubah, dipakai untuk mengingat saran yang sudah ditutup */
   key: string
   title: string
@@ -20,7 +21,7 @@ export interface Advice {
 /** catatan sesi berjalan per huruf (sejak pengaturan terakhir berubah): benar, salah, dan benar-cepat */
 export type SessionLog = Record<string, { r: number; w: number; fast: number }>
 
-const MAX_LENGTH = 6
+const MAX_LENGTH = 20
 /** jumlah huruf terlemah yang diuji */
 const SAMPLE = 8
 /** minimal jawaban benar-cepat per huruf sampel di sesi berjalan */
@@ -101,6 +102,7 @@ export function adviceFor(
     if (g) actions.push({ kind: 'letters', ids: g.kana.map((k) => k.id), replace: false, label: `Tambah ${groupTitle(g)}` })
     if (actions.length) {
       out.push({
+        kind: 'up',
         key: `up|${key}`,
         title: s.mode === 'single' ? 'Per huruf sudah lancar' : `Sudah lancar di ${s.length} huruf gabungan`,
         body: `Huruf yang paling sulit buatmu (${sample
@@ -124,6 +126,7 @@ export function adviceFor(
     const same = worst.length === s.selected.length && worst.every((r) => s.selected.includes(r.k.id))
     if (!same) actions.push({ kind: 'letters', ids: worst.map((r) => r.k.id), replace: true, label: 'Fokus ke huruf ini' })
     out.push({
+      kind: 'focus',
       key: `focus|${key}`,
       title: 'Beberapa huruf masih goyah',
       body: `${worst

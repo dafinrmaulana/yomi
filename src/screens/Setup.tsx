@@ -1,7 +1,8 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import AdviceCard from '../components/AdviceCard'
 import Petals from '../components/Petals'
+import Switch from '../components/Switch'
 import { adviceFor, applyAction } from '../lib/advice'
 import { GROUPS, KIND_LABEL, SCRIPT_LABEL, groupTitle, type Kana, type Script } from '../lib/kana'
 import type { AnswerMode, Direction, FreeSettings, SpeedStat } from '../lib/storage'
@@ -100,6 +101,7 @@ function cardsFor(script: Script, kind: 'dasar' | 'dakuten' | 'yoon'): Card[] {
 
 export default function Setup({ settings, stats, speed, onChange, onStart, onBack }: Props) {
   const [script, setScript] = useState<Script>('hiragana')
+  const [wordsInfo, setWordsInfo] = useState(false)
   const selected = new Set(settings.selected)
   const set = (patch: Partial<FreeSettings>) => onChange({ ...settings, ...patch })
   const setIds = (ids: Iterable<string>) => set({ selected: [...ids] })
@@ -214,11 +216,34 @@ export default function Setup({ settings, stats, speed, onChange, onStart, onBac
                     id="len"
                     type="range"
                     min={2}
-                    max={6}
+                    max={20}
                     value={settings.length}
                     onChange={(e) => set({ length: Number(e.target.value) })}
                     className="w-full accent-sharin"
                   />
+                  <div className="mt-4 border-t border-[#3a2a20] pt-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">Susun dari kata nyata</p>
+                        <button
+                          type="button"
+                          onClick={() => setWordsInfo((v) => !v)}
+                          aria-expanded={wordsInfo}
+                          className="mt-0.5 inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-[#b9a782] transition hover:text-bone"
+                        >
+                          Apa ini?
+                          <ChevronDown size={14} aria-hidden className={`transition-transform ${wordsInfo ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
+                      <Switch checked={!!settings.words} onChange={(words) => set({ words })} label="Susun dari kata nyata" />
+                    </div>
+                    {wordsInfo && (
+                      <p className="mt-2 text-sm text-[#b9a782]">
+                        Rangkaian berupa kata sungguhan (misalnya ねこ = kucing). Arti tiap kata muncul di bawah kata itu begitu selesai diketik dengan benar. Kalau lebih panjang
+                        dari satu kata, beberapa kata dirangkai. Kalau huruf yang dipilih belum cukup untuk membentuk kata, soal tetap diacak.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </Step>

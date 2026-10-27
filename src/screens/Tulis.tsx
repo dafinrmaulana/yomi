@@ -1,5 +1,5 @@
-import { Search, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { ChevronDown, Search, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 import { Modal } from '../components/Modal'
 import Page from '../components/Page'
 import StrokeAnimator, { StepsGrid, StrokeSteps } from '../components/StrokeAnimator'
@@ -9,6 +9,12 @@ import { useStrokes, type StrokeData } from '../lib/strokes'
 import { allWriteChars, writeSections, type WriteChar, type WriteRow } from '../lib/tulis'
 
 const SCRIPTS: Script[] = ['hiragana', 'katakana']
+
+/** pilihan filter baris, dikelompokkan per bagian (baris sama untuk hiragana dan katakana) */
+const ROW_OPTIONS = writeSections('hiragana').map((sec) => ({
+  title: sec.title,
+  rows: sec.rows.map((r) => ({ id: r.id, title: r.title })),
+}))
 
 /** satu huruf = satu baris: identitas di kiri, langkah di tengah, tombol di kanan (padat supaya satu baris konsonan muat di layar) */
 function CharCard({ c, data, practiceTo, onSteps, onAnimate }: { c: WriteChar; data?: StrokeData; practiceTo: string; onSteps: (step: number) => void; onAnimate: () => void }) {
@@ -59,13 +65,17 @@ export default function Tulis() {
   // cari: cocokkan bacaan (ka, shi) atau hurufnya langsung (か)
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
+  const [rowFilter, setRowFilter] = useState('')
   const match = (c: WriteChar) => !q || c.romaji.includes(q) || c.char.includes(query.trim())
   const shown = SCRIPTS.map((script) => ({
     script,
     sections: writeSections(script)
       .map((sec) => ({
         ...sec,
-        rows: sec.rows.map((r) => ({ ...r, chars: r.chars.filter(match) })).filter((r) => r.chars.length > 0),
+        rows: sec.rows
+          .filter((r) => !rowFilter || r.id === rowFilter)
+          .map((r) => ({ ...r, chars: r.chars.filter(match) }))
+          .filter((r) => r.chars.length > 0),
       }))
       .filter((sec) => sec.rows.length > 0),
   }))
@@ -73,55 +83,13 @@ export default function Tulis() {
   const total = shown.reduce((n, x) => n + x.sections.reduce((m, sec) => m + sec.rows.reduce((k, r) => k + r.chars.length, 0), 0), 0)
   const rowSet = (script: Script, row: WriteRow) => `?set=row-${script}-${row.id}`
 
-  // tab aktif mengikuti bagian yang terlihat. Saat tab diklik langsung aktif, dan scrollspy dikunci
-  // sampai scroll halusnya benar-benar berhenti (tidak ada event scroll selama 150 md), supaya tidak berkedip.
+  // tab mengganti skrip yang ditampilkan (bukan menggulir); skrip tanpa hasil pencarian dilewati
   const [active, setActive] = useState<Script>('hiragana')
-  const locked = useRef(false)
-  const timer = useRef(0)
-  const raf = useRef(0)
-
-  const spy = useCallback(() => {
-    raf.current = 0
-    if (locked.current) return
-    const h = document.getElementById('hiragana')
-    const k = document.getElementById('katakana')
-    setActive(!h ? 'katakana' : k && k.getBoundingClientRect().top <= 170 ? 'katakana' : 'hiragana')
-  }, [])
-
-  const unlockSoon = useCallback(
-    (ms: number) => {
-      clearTimeout(timer.current)
-      timer.current = window.setTimeout(() => {
-        locked.current = false
-        spy()
-      }, ms)
-    },
-    [spy],
-  )
-
-  useEffect(() => {
-    const onScroll = () => {
-      if (locked.current) unlockSoon(150)
-      else if (!raf.current) raf.current = requestAnimationFrame(spy)
-    }
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      cancelAnimationFrame(raf.current)
-      clearTimeout(timer.current)
-    }
-  }, [spy, unlockSoon])
-
-  // jika hasil pencarian berubah, hitung ulang tab aktif
-  useEffect(() => {
-    spy()
-  }, [q, spy])
+  const current: Script = has(active) ? active : has(SCRIPTS.find((s) => s !== active)!) ? SCRIPTS.find((s) => s !== active)! : active
 
   const jump = (s: Script) => {
     setActive(s)
-    locked.current = true
-    unlockSoon(400)
-    document.getElementById(s)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    window.scrollTo({ top: 0 })
   }
 
   return (
@@ -141,7 +109,7 @@ export default function Tulis() {
               <button
                 key={s}
                 role="tab"
-                aria-selected={active === s}
+                aria-selected={current === s}
                 disabled={!has(s)}
                 className="tab !py-0 disabled:cursor-not-allowed disabled:opacity-40"
                 onClick={() => jump(s)}
@@ -149,6 +117,27 @@ export default function Tulis() {
                 {SCRIPT_LABEL[s]}
               </button>
             ))}
+          </div>
+
+          <div className="relative min-w-[140px] flex-1 sm:max-w-[200px] sm:flex-none">
+            <select
+              value={rowFilter}
+              onChange={(e) => setRowFilter(e.target.value)}
+              aria-label="Filter baris"
+              className="h-11 w-full cursor-pointer appearance-none rounded-md border border-[#3a2a20] bg-[#120c09]/80 py-0 pl-3 pr-8 text-sm text-bone outline-none transition focus:border-sharin"
+            >
+              <option value="">Semua baris</option>
+              {ROW_OPTIONS.map((sec) => (
+                <optgroup key={sec.title} label={sec.title}>
+                  {sec.rows.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.title}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <ChevronDown size={16} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8f7f66]" aria-hidden />
           </div>
 
           <div className="relative ml-auto min-w-[140px] flex-1 sm:max-w-[280px]">
@@ -176,14 +165,14 @@ export default function Tulis() {
         </div>
       </nav>
 
-      {q && total === 0 && (
+      {(q || rowFilter) && total === 0 && (
         <p className="rounded-lg border border-[#3a2a20] bg-[#120c09]/70 p-6 text-center text-[#cdb88f]">
-          Tidak ada huruf yang cocok dengan “{query.trim()}”.
+          Tidak ada huruf yang cocok{q ? ` dengan “${query.trim()}”` : ''}{rowFilter ? ' di baris ini' : ''}.
         </p>
       )}
 
       {shown
-        .filter((x) => x.sections.length > 0)
+        .filter((x) => x.script === current && x.sections.length > 0)
         .map(({ script, sections }) => {
           const all = allWriteChars(script)
           return (
@@ -228,7 +217,7 @@ export default function Tulis() {
                 )),
               )}
 
-              {!q && (
+              {!q && !rowFilter && (
                 <div className="mb-16 mt-6 rounded-xl border border-[#4d3727] bg-[#15100c]/80 p-6 text-center">
                   <p className="font-display text-xl font-extrabold">Sudah hafal semua?</p>
                   <p className="mx-auto mt-1 max-w-sm text-sm text-[#b9a782]">Tulis semua {SCRIPT_LABEL[script]} berurutan, satu per satu.</p>

@@ -42,6 +42,9 @@ interface Props {
 
 type Status = 'idle' | 'ok' | 'bad'
 
+/** saran naik level hanya muncul bila jawaban beruntun sebanyak ini benar semua (tanpa salah di antaranya) */
+const STREAK_FOR_UP = 10
+
 function avgSeconds(speed: Record<string, SpeedStat>) {
   const all = Object.values(speed)
   const n = all.reduce((a, s) => a + s.n, 0)
@@ -234,7 +237,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         merged(),
         mergedSpeed(),
         log.current,
-      ).find((a) => !dismissed.includes(a.key))
+      ).find((a) => !dismissed.includes(a.key) && (a.kind !== 'up' || combo >= STREAK_FOR_UP))
     : undefined
 
   const handleKey = (e: KeyboardEvent) => {
@@ -280,7 +283,6 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
   }
 
   const progress = config.total ? Math.min(100, (answered / config.total) * 100) : null
-  const long = q.seq.length > 3
   // keyboard virtual terbuka: padatkan layout agar kartu soal + input muat di area yang terlihat
   const compact = kb.open && q.type === 'type'
   const tiny = compact && kb.height < 420
@@ -373,7 +375,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
 
         <div
           key={`${qNo}-${status === 'bad'}`}
-          className={`card relative grid min-w-56 place-items-center ${compact ? 'px-8 py-4' : write ? 'px-8 py-5' : 'px-10 py-8'} ${
+          className={`card relative grid min-w-56 max-w-full place-items-center ${compact ? 'px-4 py-3 sm:px-8 sm:py-4' : write ? 'px-4 py-4 sm:px-8 sm:py-5' : 'px-4 py-5 sm:px-10 sm:py-8'} ${
             status === 'bad' ? 'animate-shake border-sharin' : status === 'ok' ? 'border-ok' : ''
           }`}
           style={{ boxShadow: '0 0 60px rgba(214, 40, 57, 0.12) inset' }}
@@ -381,24 +383,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
           {write ? (
             <RomajiPrompt seq={q.seq} />
           ) : (
-          <span
-            className={`font-jp font-black leading-none text-glow ${
-              compact
-                ? long
-                  ? 'text-5xl'
-                  : q.seq.length > 1
-                    ? 'text-6xl'
-                    : 'text-7xl'
-                : long
-                  ? 'text-6xl sm:text-7xl'
-                  : q.seq.length > 1
-                    ? 'text-7xl sm:text-8xl'
-                    : 'text-9xl'
-            }`}
-            style={{ letterSpacing: q.seq.length > 1 ? '0.12em' : undefined }}
-          >
-            {q.seq.map((k) => k.char).join('')}
-          </span>
+          <KanaPrompt seq={q.seq} words={q.words} size={promptSize(q.seq.length, compact)} />
           )}
           {xpPop && (
             <span
@@ -412,7 +397,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         </div>
 
         {q.type === 'type' ? (
-          <AnswerBoxes seq={q.seq} values={parts} onChange={setParts} disabled={status !== 'idle'} compact={compact} write={write} />
+          <AnswerBoxes seq={q.seq} values={parts} onChange={setParts} disabled={status !== 'idle'} compact={compact} write={write} words={q.words} />
         ) : (
           <div className="mt-8 grid w-full max-w-md grid-cols-2 gap-3">
             {q.options.map((opt, i) => {
@@ -550,11 +535,81 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
   )
 }
 
+const MOBILE_ROW = 6
+
+/**
+ * Soal arah baca. Kata nyata ditata per kata (baris hanya putus di antara kata). Rangkaian acak yang panjang
+ * dipotong per enam huruf di layar kecil dengan nomor baris, supaya urutan bacanya jelas: kiri ke kanan, atas ke bawah.
+ */
+function KanaPrompt({ seq, words, size }: { seq: Question['seq']; words?: Question['words']; size: string }) {
+  const base = `font-jp font-black leading-tight text-glow ${size}`
+  const spacing = { letterSpacing: seq.length > 1 ? '0.12em' : undefined }
+  const chars = seq.map((k) => k.char)
+
+  if (words) {
+    let from = 0
+    return (
+      <div className={`flex flex-wrap justify-start gap-x-5 gap-y-1 text-left sm:justify-center ${base}`} style={spacing}>
+        {words.map((w, i) => {
+          const t = chars.slice(from, from + w.len).join('')
+          from += w.len
+          return (
+            <span key={i} className="whitespace-nowrap">
+              {t}
+            </span>
+          )
+        })}
+      </div>
+    )
+  }
+
+  if (seq.length <= MOBILE_ROW) {
+    return (
+      <span className={`text-left ${base}`} style={spacing}>
+        {chars.join('')}
+      </span>
+    )
+  }
+  const rows = Array.from({ length: Math.ceil(chars.length / MOBILE_ROW) }, (_, i) => chars.slice(i * MOBILE_ROW, (i + 1) * MOBILE_ROW).join(''))
+  return (
+    <>
+      <div className="flex flex-col gap-1 sm:hidden">
+        {rows.map((r, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <span className="w-4 shrink-0 text-center text-[11px] font-bold tabular-nums text-mute" aria-hidden>
+              {i + 1}
+            </span>
+            <span className={`text-left ${base}`} style={spacing}>
+              {r}
+            </span>
+          </div>
+        ))}
+      </div>
+      <span className={`hidden text-left sm:inline ${base}`} style={spacing}>
+        {chars.join('')}
+      </span>
+    </>
+  )
+}
+
+/** ukuran huruf soal arah baca menurut panjang rangkaian (makin panjang makin kecil agar tetap muat) */
+function promptSize(n: number, compact: boolean): string {
+  // ukuran dasar untuk layar kecil (enam huruf per baris harus muat di ~320px), lalu lebih besar di sm ke atas
+  if (compact) return n > 6 ? 'text-3xl' : n > 3 ? 'text-4xl' : n > 1 ? 'text-5xl' : 'text-7xl'
+  if (n > 12) return 'text-3xl sm:text-4xl'
+  if (n > 6) return 'text-4xl sm:text-5xl'
+  if (n > 4) return 'text-4xl sm:text-7xl'
+  if (n > 3) return 'text-5xl sm:text-7xl'
+  if (n > 1) return 'text-6xl sm:text-8xl'
+  return 'text-8xl sm:text-9xl'
+}
+
 /** soal arah tulis: romaji tiap huruf, plus label skrip supaya jelas hiragana atau katakana */
 function RomajiPrompt({ seq }: { seq: Question['seq'] }) {
   const scripts = new Set(seq.map((k) => k.script))
   const mixed = scripts.size > 1
-  const size = seq.length > 3 ? 'text-3xl sm:text-4xl' : seq.length > 1 ? 'text-4xl sm:text-5xl' : 'text-6xl sm:text-7xl'
+  const size =
+    seq.length > 12 ? 'text-xl sm:text-2xl' : seq.length > 8 ? 'text-2xl sm:text-3xl' : seq.length > 3 ? 'text-3xl sm:text-4xl' : seq.length > 1 ? 'text-4xl sm:text-5xl' : 'text-6xl sm:text-7xl'
   return (
     <div className="flex flex-col items-center gap-2">
       {!mixed && (
