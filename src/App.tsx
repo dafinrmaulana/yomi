@@ -39,6 +39,15 @@ function Routes() {
     navigate('/quiz', { replace })
   }
 
+  const switchMode = (config: QuizConfig) => {
+    const mode = config.mode === 'single' ? 'combined' : 'single'
+    patch({ free: { ...progress.free, mode } })
+    startQuiz(
+      { ...config, mode, answer: mode === 'combined' ? 'type' : progress.free.answer },
+      true,
+    )
+  }
+
   const startFree = () => {
     const s = progress.free
     const ids = new Set(s.selected)
@@ -69,6 +78,7 @@ function Routes() {
       correct: result.correct,
       wrong: result.wrong,
       stats: result.stats,
+      speed: result.speed,
       completedNode: done && result.config.nodeId ? { id: result.config.nodeId, stars: result.stars } : undefined,
     })
     setSummary({ result, bonus })
@@ -87,6 +97,7 @@ function Routes() {
         mute={progress.mute}
         onFinish={finish}
         onExit={() => back(returnPath(quiz.config))}
+        onSwitchMode={quiz.config.kind === 'free' ? () => switchMode(quiz.config) : undefined}
       />
     )
   else if (path === '/result' && summary)

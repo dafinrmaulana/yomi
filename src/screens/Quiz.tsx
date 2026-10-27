@@ -26,13 +26,25 @@ interface Props {
   mute: boolean
   onFinish: (r: QuizResult) => void
   onExit: () => void
+  /** hanya ada di Latihan Bebas: ganti per huruf ↔ gabungan dan mulai ulang sesi */
+  onSwitchMode?: () => void
 }
 
 type Status = 'idle' | 'ok' | 'bad'
 
-export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
+const MAX_MS = 20000
+
+function avgSeconds(speed: Record<string, { n: number; ms: number }>) {
+  const all = Object.values(speed)
+  const n = all.reduce((a, s) => a + s.n, 0)
+  return n ? all.reduce((a, s) => a + s.ms, 0) / n / 1000 : null
+}
+
+export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMode }: Props) {
   const session = useRef<Record<string, { r: number; w: number }>>({})
   const startedAt = useRef(Date.now())
+  const shownAt = useRef(Date.now())
+  const speed = useRef<Record<string, { n: number; ms: number }>>({})
   const inputRef = useRef<HTMLInputElement>(null)
   const kb = useKeyboard()
   const direction = config.direction ?? 'read'
@@ -53,6 +65,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
   const [picked, setPicked] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [praise, setPraise] = useState('')
+  const [lastMs, setLastMs] = useState(0)
   const [correct, setCorrect] = useState(0)
   const [wrong, setWrong] = useState(0)
   const [xp, setXp] = useState(0)
@@ -83,6 +96,8 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
       maxCombo,
       seconds: Math.round((Date.now() - startedAt.current) / 1000),
       stats: session.current,
+      speed: speed.current,
+      avgSeconds: avgSeconds(speed.current),
       weak,
       failed,
       stars: failed ? 0 : starsFor(correct, wrong),
@@ -100,8 +115,16 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
     })
 
     if (ok) {
+      // waktu berpikir dibagi rata ke tiap huruf; jeda >20 dtk dianggap melamun
+      const each = Math.min(Date.now() - shownAt.current, MAX_MS) / q.seq.length
+      for (const k of q.seq) {
+        const s = (speed.current[k.id] ??= { n: 0, ms: 0 })
+        s.n++
+        s.ms += each
+      }
       const gain = questionXp(q.seq.length)
       setStatus('ok')
+      setLastMs(Math.min(Date.now() - shownAt.current, MAX_MS))
       setPraise(pickPraise())
       setCorrect((c) => c + 1)
       setXp((x) => x + gain)
@@ -147,11 +170,23 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
     setPicked(null)
     setStatus('idle')
     setXpPop(null)
+    shownAt.current = Date.now()
+  }
+
+  const switchMode = () => {
+    if (!onSwitchMode) return
+    if (answered > 0 && !window.confirm('Ganti mode? Progres sesi ini akan di-reset.')) return
+    onSwitchMode()
   }
 
   const handleKey = (e: KeyboardEvent) => {
     // Enter saat IME (keyboard Jepang) masih menyusun kata hanya mengonfirmasi konversi
     if (e.isComposing || e.keyCode === 229) return
+    if (e.key === 'Tab' && onSwitchMode) {
+      e.preventDefault()
+      switchMode()
+      return
+    }
     if (e.key === 'Enter') {
       e.preventDefault()
       if (status !== 'idle') next()
@@ -223,6 +258,16 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
           </div>
         )}
 
+        {onSwitchMode && (
+          <button
+            onClick={switchMode}
+            title="Ganti mode (Tab)"
+            className="cursor-pointer rounded-lg border border-[#4d3727] px-3 py-1.5 text-xs font-bold text-mute transition hover:border-sharin hover:text-bone"
+          >
+            {config.mode === 'single' ? 'Per huruf' : 'Gabungan'} ⇄{' '}
+            <span className="hidden sm:inline">{config.mode === 'single' ? 'Gabungan' : 'Per huruf'} · Tab</span>
+          </button>
+        )}
         {config.hearts && <Hearts left={hearts} />}
         <div className="flex items-center gap-1.5" title={`Combo ${combo}`}>
           <Sharingan level={level} size={30} />
@@ -372,6 +417,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit }: Props) {
                           {q.seq.map((k) => k.char).join('')} = {display(q.seq)}
                         </>
                       )}
+                      {' '}· {(lastMs / 1000).toFixed(1)} dtk
                     </p>
                   </>
                 ) : (

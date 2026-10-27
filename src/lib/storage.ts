@@ -42,6 +42,8 @@ export interface Progress {
   todayXp: number
   completed: Record<string, number>
   stats: Record<string, { r: number; w: number }>
+  /** total waktu (ms) dan jumlah jawaban benar yang diukur, per huruf */
+  speed: Record<string, { n: number; ms: number }>
   totalCorrect: number
   totalWrong: number
   mute: boolean
@@ -85,6 +87,7 @@ const defaults = (): Progress => ({
   todayXp: 0,
   completed: {},
   stats: {},
+  speed: {},
   totalCorrect: 0,
   totalWrong: 0,
   mute: false,
@@ -114,6 +117,7 @@ export interface SessionResult {
   correct: number
   wrong: number
   stats: Record<string, { r: number; w: number }>
+  speed?: Record<string, { n: number; ms: number }>
   completedNode?: { id: string; stars: number }
 }
 
@@ -164,6 +168,11 @@ export function useProgress() {
       for (const [id, s] of Object.entries(res.stats)) {
         const old = next.stats[id] ?? { r: 0, w: 0 }
         next.stats[id] = { r: old.r + s.r, w: old.w + s.w }
+      }
+      next.speed = { ...next.speed }
+      for (const [id, s] of Object.entries(res.speed ?? {})) {
+        const old = next.speed[id] ?? { n: 0, ms: 0 }
+        next.speed[id] = { n: old.n + s.n, ms: old.ms + s.ms }
       }
       if (res.completedNode) {
         const { id, stars } = res.completedNode

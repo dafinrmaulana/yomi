@@ -33,6 +33,7 @@ export default function Summary({ result, bonusXp, onRetry, onBack }: Props) {
     { label: 'Akurasi', value: `${acc}%`, color: acc >= 70 ? 'text-ok' : 'text-sharin-glow' },
     { label: 'Combo maks', value: String(result.maxCombo), color: 'text-bone' },
     { label: 'Waktu', value: fmtTime(result.seconds), color: 'text-bone' },
+    { label: 'Rata-rata jawab', value: result.avgSeconds === null ? '–' : `${result.avgSeconds.toFixed(1)} dtk`, color: 'text-bone' },
   ]
 
   return (
@@ -57,7 +58,7 @@ export default function Summary({ result, bonusXp, onRetry, onBack }: Props) {
           </div>
         )}
 
-        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
           {stats.map((s) => (
             <div key={s.label} className="card px-2 py-4">
               <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>

@@ -26,6 +26,9 @@ export interface QuizResult {
   maxCombo: number
   seconds: number
   stats: Record<string, { r: number; w: number }>
+  speed: Record<string, { n: number; ms: number }>
+  /** rata-rata detik menjawab benar dalam sesi, null jika tidak ada */
+  avgSeconds: number | null
   weak: Kana[]
   failed: boolean
   stars: number

@@ -3,7 +3,7 @@ import Calendar from '../components/Calendar'
 import { Modal } from '../components/Modal'
 import Page from '../components/Page'
 import { useApp } from '../lib/app-context'
-import { GROUPS, SCRIPT_LABEL, type Script } from '../lib/kana'
+import { GROUPS, KANA_BY_ID, SCRIPT_LABEL, type Script } from '../lib/kana'
 import { BADGES, RANKS, rankFor } from '../lib/rank'
 
 function Tile({ value, label, tone = '' }: { value: string | number; label: string; tone?: string }) {
@@ -38,6 +38,13 @@ export default function Statistik() {
   const { rank, next, pct, index } = rankFor(progress.xp)
   const total = progress.totalCorrect + progress.totalWrong
   const acc = total ? Math.round((progress.totalCorrect / total) * 100) : null
+  const speedN = Object.values(progress.speed).reduce((a, v) => a + v.n, 0)
+  const avgSec = speedN ? Object.values(progress.speed).reduce((a, v) => a + v.ms, 0) / speedN / 1000 : null
+  const slowest = Object.entries(progress.speed)
+    .filter(([id, v]) => v.n >= 2 && KANA_BY_ID[id])
+    .map(([id, v]) => ({ k: KANA_BY_ID[id], sec: v.ms / v.n / 1000 }))
+    .sort((a, b) => b.sec - a.sec)
+    .slice(0, 8)
   const earned = BADGES.filter((b) => b.earned(progress))
   const day = picked ? progress.days[picked] : undefined
 
@@ -71,13 +78,14 @@ export default function Statistik() {
       </section>
 
       {/* ringkasan */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-7">
         <Tile value={progress.totalCorrect} label="Benar" tone="text-ok" />
         <Tile value={progress.totalWrong} label="Salah" tone="text-sharin-glow" />
         <Tile value={acc === null ? '–' : `${acc}%`} label="Akurasi" />
         <Tile value={Object.keys(progress.days).length} label="Hari aktif" />
         <Tile value={Math.max(progress.bestStreak, progress.dayStreak)} label="Streak terbaik" tone="text-gold" />
         <Tile value={progress.bestCombo} label="Combo terbaik" />
+        <Tile value={avgSec === null ? '–' : `${avgSec.toFixed(1)} dtk`} label="Rata-rata jawab" />
       </div>
 
       {/* kalender */}
@@ -103,10 +111,12 @@ export default function Statistik() {
             const a = n ? st!.r / n : null
             const tone =
               a === null ? 'border-[#3a2a20] bg-[#1a120d] text-[#6f604b]' : a >= 0.9 ? 'border-ok/60 bg-ok/20' : a >= 0.7 ? 'border-gold/60 bg-gold/20' : 'border-sharin/70 bg-sharin/25'
+            const sp = progress.speed[k.id]
+            const sec = sp ? ` · rata-rata ${(sp.ms / sp.n / 1000).toFixed(1)} dtk` : ''
             return (
               <div
                 key={k.id}
-                title={a === null ? `${k.char} (${k.romaji[0]}): belum dilatih` : `${k.char} (${k.romaji[0]}): ${Math.round(a * 100)}% benar dari ${n} jawaban`}
+                title={a === null ? `${k.char} (${k.romaji[0]}): belum dilatih` : `${k.char} (${k.romaji[0]}): ${Math.round(a * 100)}% benar dari ${n} jawaban${sec}`}
                 className={`font-jp grid aspect-square place-items-center rounded-lg border text-xl font-bold ${tone}`}
               >
                 {k.char}
@@ -121,6 +131,20 @@ export default function Statistik() {
           <span><i className="mr-1.5 inline-block size-3 rounded-sm bg-[#1a120d] align-middle ring-1 ring-[#3a2a20]" />belum dilatih</span>
         </div>
       </Section>
+
+      {/* kecepatan baca */}
+      {slowest.length > 0 && (
+        <Section title="Huruf paling lambat" aside="Rata-rata waktu menjawab benar">
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {slowest.map(({ k, sec }) => (
+              <li key={k.id} className="card flex items-center justify-between px-4 py-3">
+                <span className="font-jp text-2xl font-bold">{k.char}</span>
+                <span className="text-sm font-bold tabular-nums text-gold">{sec.toFixed(1)} dtk</span>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
 
       {/* lencana */}
       <Section title="Lencana" aside={`${earned.length} dari ${BADGES.length}`}>
