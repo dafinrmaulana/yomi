@@ -58,8 +58,9 @@ function nextGroup(selected: Set<string>, firstScript: Script) {
 /**
  * Saran latihan. Yang diuji adalah sampel huruf terlemah (belum dilatih, sering salah, atau lambat),
  * bukan sembarang soal: kalau huruf tersulit sudah lancar, sisanya pasti ikut lancar.
- * - Naik level: tiap huruf sampel benar-cepat >= 2x di sesi ini dan akurasinya >= 90%
- *   (tanpa sesi berjalan, dinilai dari riwayat: >= 3 jawaban, akurasi >= 90%, tidak lambat).
+ * - Naik level, di dalam game (`test`): SEMUA huruf terpilih sudah muncul dan dijawab benar di masa tes ini, tanpa
+ *   satu pun salah (salah apa pun mengulang tes dari awal), dan tiap huruf sampel benar-cepat >= 2x.
+ *   Tanpa tes berjalan (Meja Latihan), dinilai dari riwayat: >= 3 jawaban, akurasi >= 90%, tidak lambat.
  * - Fokus: sebagian huruf masih sering salah atau lambat.
  */
 export function adviceFor(
@@ -67,6 +68,7 @@ export function adviceFor(
   stats: Stats,
   speed: Record<string, SpeedStat>,
   session?: SessionLog,
+  test?: SessionLog,
 ): Advice[] {
   const limit = slowMs(s.direction)
   const rated: Rated[] = []
@@ -87,14 +89,9 @@ export function adviceFor(
   const key = `${s.mode}|${s.length}|${s.selected.length}`
   const out: Advice[] = []
 
-  const passed = session
-    ? (() => {
-        const logs = sample.map((r) => session[r.k.id])
-        if (logs.some((l) => !l || l.fast < FAST_NEEDED)) return false
-        const right = logs.reduce((a, l) => a + l.r, 0)
-        const wrong = logs.reduce((a, l) => a + l.w, 0)
-        return right / (right + wrong) >= MIN_ACC
-      })()
+  const passed = test
+    ? rated.every((r) => (test[r.k.id]?.r ?? 0) >= 1 && test[r.k.id].w === 0) &&
+      sample.every((r) => (test[r.k.id]?.fast ?? 0) >= FAST_NEEDED)
     : sample.every((r) => r.n >= MIN_ATTEMPTS && r.acc >= MIN_ACC && !r.slow)
 
   if (passed) {

@@ -44,7 +44,7 @@ interface Props {
 
 type Status = 'idle' | 'ok' | 'bad'
 
-/** saran naik level hanya muncul bila jawaban beruntun sebanyak ini benar semua (tanpa salah di antaranya) */
+/** saran naik level hanya muncul bila jawaban beruntun sebanyak ini benar semua, dihitung sejak pengaturan terakhir berubah */
 const STREAK_FOR_UP = 10
 
 /** tiap kelipatan ini, sesi diajak selesai atau istirahat */
@@ -62,6 +62,10 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
   const shownAt = useRef(Date.now())
   // catatan per huruf untuk penilaian saran; dikosongkan tiap pengaturan berubah
   const log = useRef<SessionLog>({})
+  // jawaban benar beruntun sejak pengaturan terakhir berubah; saran naik level harus dibuktikan di level yang baru
+  const run = useRef(0)
+  // masa tes naik level: dimulai ulang dari kosong setiap ada jawaban salah atau pengaturan berubah
+  const test = useRef<SessionLog>({})
   const speed = useRef<Record<string, SpeedStat>>({})
   const kb = useKeyboard()
   const direction = config.direction ?? 'read'
@@ -145,12 +149,16 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
     const each = (Date.now() - shownAt.current) / q.seq.length
     q.seq.forEach((k, i) => {
       if (i > prefix) return
-      const l = (log.current[k.id] ??= { r: 0, w: 0, fast: 0 })
-      if (i < prefix) {
-        l.r++
-        if (each <= slowMs(config.direction)) l.fast++
-      } else l.w++
+      for (const book of [log.current, test.current]) {
+        const l = (book[k.id] ??= { r: 0, w: 0, fast: 0 })
+        if (i < prefix) {
+          l.r++
+          if (each <= slowMs(config.direction)) l.fast++
+        } else l.w++
+      }
     })
+    run.current = ok ? run.current + 1 : 0
+    if (!ok) test.current = {}
 
     if (ok) {
       // waktu berpikir dibagi rata ke tiap huruf, tanpa batas atas
@@ -240,6 +248,8 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
   // pengaturan berubah (mis. setelah menerima saran): penilaian dimulai dari awal
   useEffect(() => {
     log.current = {}
+    test.current = {}
+    run.current = 0
   }, [config.mode, config.length, config.pool.length])
 
   // tiap kelipatan MILESTONE soal: ajak selesai/istirahat untuk melihat statistik (hanya sesi yang boleh diakhiri)
@@ -261,7 +271,8 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         merged(),
         mergedSpeed(),
         log.current,
-      ).find((a) => !dismissed.includes(a.key) && (a.kind !== 'up' || combo >= STREAK_FOR_UP))
+        test.current,
+      ).find((a) => !dismissed.includes(a.key) && (a.kind !== 'up' || run.current >= STREAK_FOR_UP))
     : undefined
   const advice = milestone ?? settingsAdvice
 
