@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import AdviceCard from '../components/AdviceCard'
 import AnswerBoxes from '../components/AnswerBoxes'
 import Hearts from '../components/Hearts'
 import { ConfirmDialog } from '../components/Modal'
 import Petals from '../components/Petals'
 import Scenery from '../components/Scenery'
 import Sharingan, { sharinganLevel } from '../components/Sharingan'
+import { adviceFor, type AdviceAction, type SessionLog } from '../lib/advice'
 import { KANA_BY_ID, SCRIPT_LABEL } from '../lib/kana'
 import {
   checkKana,
@@ -34,6 +36,8 @@ interface Props {
   onExit: () => void
   /** hanya ada di Latihan Bebas: ganti per huruf ↔ gabungan dan mulai ulang sesi */
   onSwitchMode?: () => void
+  /** hanya Latihan Bebas: terapkan saran tanpa mereset sesi */
+  onApplyAdvice?: (a: AdviceAction) => void
 }
 
 type Status = 'idle' | 'ok' | 'bad'
@@ -44,10 +48,12 @@ function avgSeconds(speed: Record<string, SpeedStat>) {
   return n ? all.reduce((a, s) => a + s.ms, 0) / n / 1000 : null
 }
 
-export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, onExit, onSwitchMode }: Props) {
+export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, onExit, onSwitchMode, onApplyAdvice }: Props) {
   const session = useRef<Record<string, { r: number; w: number }>>({})
   const startedAt = useRef(Date.now())
   const shownAt = useRef(Date.now())
+  // catatan per huruf untuk penilaian saran; dikosongkan tiap pengaturan berubah
+  const log = useRef<SessionLog>({})
   const speed = useRef<Record<string, SpeedStat>>({})
   const kb = useKeyboard()
   const direction = config.direction ?? 'read'
@@ -128,6 +134,16 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
       else s.w++
     })
 
+    const each = (Date.now() - shownAt.current) / q.seq.length
+    q.seq.forEach((k, i) => {
+      if (i > prefix) return
+      const l = (log.current[k.id] ??= { r: 0, w: 0, fast: 0 })
+      if (i < prefix) {
+        l.r++
+        if (each <= slowMs(config.direction)) l.fast++
+      } else l.w++
+    })
+
     if (ok) {
       // waktu berpikir dibagi rata ke tiap huruf, tanpa batas atas
       const each = (Date.now() - shownAt.current) / q.seq.length
@@ -190,6 +206,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
   }
 
   const [confirm, setConfirm] = useState<'exit' | 'mode' | null>(null)
+  const [dismissed, setDismissed] = useState<string[]>([])
 
   const exit = () => {
     if (answered > 0) setConfirm('exit')
@@ -204,6 +221,21 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
     if (answered > 0) setConfirm('mode')
     else onSwitchMode()
   }
+
+  // pengaturan berubah (mis. setelah menerima saran): penilaian dimulai dari awal
+  useEffect(() => {
+    log.current = {}
+  }, [config.mode, config.length, config.pool.length])
+
+  // saran dinilai dari huruf-huruf terlemah di pengaturan ini, dihitung ulang tiap pindah soal
+  const advice = onApplyAdvice
+    ? adviceFor(
+        { mode: config.mode, length: config.length, selected: config.pool.map((k) => k.id), direction: config.direction },
+        merged(),
+        mergedSpeed(),
+        log.current,
+      ).find((a) => !dismissed.includes(a.key))
+    : undefined
 
   const handleKey = (e: KeyboardEvent) => {
     // Enter saat IME (keyboard Jepang) masih menyusun kata hanya mengonfirmasi konversi
@@ -416,6 +448,18 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         // iOS: layout viewport tidak mengecil, jadi angkat bar tepat di atas keyboard
         style={kb.open && kb.inset ? { bottom: kb.inset } : undefined}
       >
+        {/* saran muncul bersama umpan balik jawaban (setelah Periksa/Lewati), melayang di atas bar */}
+        {advice && !compact && status !== 'idle' && (
+          <div className="absolute inset-x-4 bottom-full mb-3">
+            <div className="mx-auto max-w-2xl">
+              <AdviceCard
+                advice={advice}
+                onApply={(a) => onApplyAdvice?.(a)}
+                onDismiss={() => setDismissed((d) => [...d, advice.key])}
+              />
+            </div>
+          </div>
+        )}
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
           {status === 'idle' ? (
             <>

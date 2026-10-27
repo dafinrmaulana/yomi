@@ -1,25 +1,20 @@
-import AdviceCard from '../components/AdviceCard'
 import Confetti from '../components/Confetti'
 import Petals from '../components/Petals'
 import Scenery from '../components/Scenery'
 import Sharingan from '../components/Sharingan'
-import type { Advice, AdviceAction } from '../lib/advice'
 import type { QuizResult } from '../lib/quiz'
 import { useRouter } from '../lib/router'
 
 interface Props {
   result: QuizResult
   bonusXp: number
-  /** saran latihan (hanya Latihan Bebas) */
-  advice?: Advice
-  onApplyAdvice: (a: AdviceAction) => void
   onRetry: () => void
   onBack: () => void
 }
 
 const fmtTime = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`)
 
-export default function Summary({ result, bonusXp, advice, onApplyAdvice, onRetry, onBack }: Props) {
+export default function Summary({ result, bonusXp, onRetry, onBack }: Props) {
   const { navigate } = useRouter()
   const { correct, wrong, failed, config } = result
   const total = correct + wrong
@@ -101,12 +96,6 @@ export default function Summary({ result, bonusXp, advice, onApplyAdvice, onRetr
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {advice && (
-          <div className="mt-3">
-            <AdviceCard advice={advice} onApply={onApplyAdvice} />
           </div>
         )}
 
