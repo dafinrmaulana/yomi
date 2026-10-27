@@ -14,7 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'Yomi 読み',
         short_name: 'Yomi',
-        description: 'Latihan membaca hiragana dan katakana bertema klan Uchiha.',
+        description: 'Latihan membaca hiragana dan katakana.',
         lang: 'id',
         start_url: '/',
         scope: '/',

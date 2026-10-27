@@ -1,6 +1,6 @@
 # Yomi 読み
 
-Latihan membaca hiragana & katakana bertema klan Uchiha. React + Vite + TypeScript + Tailwind v4.
+Latihan membaca hiragana & katakana. React + Vite + TypeScript + Tailwind v4.
 
 ```bash
 npm install
@@ -39,7 +39,7 @@ Alamat seperti `/write` ditangani lewat fallback ke `index.html` (sudah ada di k
 
 ## Catatan
 
-Proyek penggemar bertema Uchiha. Tidak berafiliasi dengan Masashi Kishimoto, Shueisha,
+Proyek penggemar. Tidak berafiliasi dengan Masashi Kishimoto, Shueisha,
 atau pemegang hak cipta Naruto; semua grafis dibuat sendiri dengan SVG.
 
 ## Lisensi
