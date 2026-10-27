@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import AnswerBoxes from '../components/AnswerBoxes'
 import Hearts from '../components/Hearts'
 import Petals from '../components/Petals'
 import Scenery from '../components/Scenery'
@@ -45,7 +46,6 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
   const startedAt = useRef(Date.now())
   const shownAt = useRef(Date.now())
   const speed = useRef<Record<string, { n: number; ms: number }>>({})
-  const inputRef = useRef<HTMLInputElement>(null)
   const kb = useKeyboard()
   const direction = config.direction ?? 'read'
   const write = direction === 'write'
@@ -61,11 +61,13 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
 
   const [q, setQ] = useState<Question>(() => makeQuestion(config, stats))
   const [qNo, setQNo] = useState(1)
-  const [input, setInput] = useState('')
+  const [parts, setParts] = useState<string[]>([])
+  const answer = parts.join('')
   const [picked, setPicked] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [praise, setPraise] = useState('')
   const [lastMs, setLastMs] = useState(0)
+  const [elapsed, setElapsed] = useState(0)
   const [correct, setCorrect] = useState(0)
   const [wrong, setWrong] = useState(0)
   const [xp, setXp] = useState(0)
@@ -156,7 +158,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
   }
 
   const skip = () => {
-    submit(q.type === 'type' ? input || '-' : '-')
+    submit(q.type === 'type' ? answer || '-' : '-')
   }
 
   const next = () => {
@@ -166,7 +168,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
     const key = q.seq.map((k) => k.id).join()
     setQ(makeQuestion(config, merged(), key))
     setQNo((n) => n + 1)
-    setInput('')
+    setParts([])
     setPicked(null)
     setStatus('idle')
     setXpPop(null)
@@ -190,7 +192,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
     if (e.key === 'Enter') {
       e.preventDefault()
       if (status !== 'idle') next()
-      else if (q.type === 'type' && input.trim()) submit(input)
+      else if (q.type === 'type' && answer.trim()) submit(answer)
     } else if (status === 'idle' && q.type === 'choice' && /^[1-4]$/.test(e.key)) {
       const opt = q.options[Number(e.key) - 1]
       if (opt) pick(opt)
@@ -205,9 +207,14 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
     return () => window.removeEventListener('keydown', fn)
   }, [])
 
+  // stopwatch per soal: jalan sampai dijawab, lalu berhenti di waktu jawabnya
   useEffect(() => {
-    if (status === 'idle' && q.type === 'type') inputRef.current?.focus({ preventScroll: true })
-  }, [status, q])
+    if (status !== 'idle') return
+    const tick = () => setElapsed(Date.now() - shownAt.current)
+    tick()
+    const id = setInterval(tick, 100)
+    return () => clearInterval(id)
+  }, [status, qNo])
 
   const pick = (opt: string) => {
     if (status !== 'idle') return
@@ -269,6 +276,12 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
           </button>
         )}
         {config.hearts && <Hearts left={hearts} />}
+        <div
+          className="min-w-14 rounded-lg border border-[#4d3727] px-2 py-1 text-center text-sm font-extrabold tabular-nums text-bone"
+          title="Waktu soal ini"
+        >
+          {(Math.min(elapsed, MAX_MS) / 1000).toFixed(1)}s
+        </div>
         <div className="flex items-center gap-1.5" title={`Combo ${combo}`}>
           <Sharingan level={level} size={30} />
           <span className="min-w-5 text-sm font-extrabold tabular-nums">{combo}</span>
@@ -337,21 +350,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
         </div>
 
         {q.type === 'type' ? (
-          <input
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={status !== 'idle'}
-            autoComplete="off"
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
-            lang={write ? 'ja' : undefined}
-            placeholder={write ? (config.mode === 'combined' ? 'contoh: さしす' : 'ketik huruf Jepang…') : config.mode === 'combined' ? 'contoh: sashisu' : 'ketik romaji…'}
-            className={`w-full max-w-sm rounded-[3px] border-2 border-[#4d3727] bg-[#120c09]/90 px-5 text-center font-bold ${
-              compact ? 'mt-4 py-3 text-xl' : 'mt-8 py-4 text-2xl'
-            } ${write ? 'font-jp' : ''} tracking-wider text-bone outline-none transition placeholder:text-mute/50 focus:border-sharin disabled:opacity-60`}
-          />
+          <AnswerBoxes seq={q.seq} values={parts} onChange={setParts} disabled={status !== 'idle'} compact={compact} write={write} />
         ) : (
           <div className="mt-8 grid w-full max-w-md grid-cols-2 gap-3">
             {q.options.map((opt, i) => {
@@ -394,7 +393,7 @@ export default function Quiz({ config, stats, mute, onFinish, onExit, onSwitchMo
                 Lewati
               </button>
               {q.type === 'type' ? (
-                <button className="btn btn-red" disabled={!input.trim()} onClick={() => submit(input)}>
+                <button className="btn btn-red" disabled={!answer.trim()} onClick={() => submit(answer)}>
                   Periksa
                 </button>
               ) : (

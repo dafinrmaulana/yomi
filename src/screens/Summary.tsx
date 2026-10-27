@@ -33,7 +33,7 @@ export default function Summary({ result, bonusXp, onRetry, onBack }: Props) {
     { label: 'Akurasi', value: `${acc}%`, color: acc >= 70 ? 'text-ok' : 'text-sharin-glow' },
     { label: 'Combo maks', value: String(result.maxCombo), color: 'text-bone' },
     { label: 'Waktu', value: fmtTime(result.seconds), color: 'text-bone' },
-    { label: 'Rata-rata jawab', value: result.avgSeconds === null ? '–' : `${result.avgSeconds.toFixed(1)} dtk`, color: 'text-bone' },
+    { label: 'Rata-rata', value: result.avgSeconds === null ? '–' : `${result.avgSeconds.toFixed(1)}s`, color: 'text-bone' },
   ]
 
   return (
@@ -60,9 +60,9 @@ export default function Summary({ result, bonusXp, onRetry, onBack }: Props) {
 
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
           {stats.map((s) => (
-            <div key={s.label} className="card px-2 py-4">
-              <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-              <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-mute">{s.label}</p>
+            <div key={s.label} className="card flex flex-col justify-center px-2 py-4 last:col-span-2 sm:last:col-span-1">
+              <p className={`whitespace-nowrap text-2xl font-black ${s.color}`}>{s.value}</p>
+              <p className="mt-1 whitespace-nowrap text-[11px] font-bold uppercase tracking-widest text-mute">{s.label}</p>
             </div>
           ))}
         </div>
