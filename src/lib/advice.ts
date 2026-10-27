@@ -8,9 +8,11 @@ export type AdviceAction =
   | { kind: 'length'; value: number; label: string }
   | { kind: 'mode'; value: QuizMode; label: string }
   | { kind: 'letters'; ids: string[]; replace: boolean; label: string }
+  /** bukan pengaturan: mengakhiri sesi dan membuka hasil */
+  | { kind: 'finish'; label: string }
 
 export interface Advice {
-  kind: 'up' | 'focus'
+  kind: 'up' | 'focus' | 'milestone'
   /** berubah saat pengaturan berubah, dipakai untuk mengingat saran yang sudah ditutup */
   key: string
   title: string
@@ -33,6 +35,7 @@ const MIN_ATTEMPTS = 3
 export function applyAction(s: FreeSettings, a: AdviceAction): FreeSettings {
   if (a.kind === 'length') return { ...s, mode: 'combined', length: a.value }
   if (a.kind === 'mode') return { ...s, mode: a.value }
+  if (a.kind === 'finish') return s
   return { ...s, selected: a.replace ? a.ids : [...new Set([...s.selected, ...a.ids])] }
 }
 

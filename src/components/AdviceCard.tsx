@@ -1,15 +1,19 @@
-import { Lightbulb, X } from 'lucide-react'
+import { Check, Lightbulb, X } from 'lucide-react'
 import type { Advice, AdviceAction } from '../lib/advice'
 
 interface Props {
   advice: Advice
+  /** label aksi yang sudah diterapkan; tampil sebagai chip, bukan tombol */
+  applied?: string[]
+  /** petunjuk langkah berikutnya setelah ada aksi yang diterapkan */
+  hint?: string
   onApply: (a: AdviceAction) => void
   onDismiss?: () => void
   compact?: boolean
 }
 
 /** kartu saran latihan; dipakai di Meja Latihan dan di dalam game */
-export default function AdviceCard({ advice, onApply, onDismiss, compact }: Props) {
+export default function AdviceCard({ advice, applied = [], hint, onApply, onDismiss, compact }: Props) {
   return (
     <div className="card animate-rise relative border-gold/40 p-4 text-left" role="status">
       <div className="flex items-start gap-3">
@@ -21,12 +25,24 @@ export default function AdviceCard({ advice, onApply, onDismiss, compact }: Prop
           <p className="font-display text-base font-extrabold leading-tight">{advice.title}</p>
           {!compact && <p className="mt-1 text-sm text-[#cdb88f]">{advice.body}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
-            {advice.actions.map((a) => (
-              <button key={a.label} className="btn btn-ghost !px-3 !py-1.5 !text-xs" onClick={() => onApply(a)}>
-                {a.label}
-              </button>
-            ))}
+            {advice.actions.map((a) =>
+              applied.includes(a.label) ? (
+                <span
+                  key={a.label}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-gold/60 bg-gold/20 px-3 py-1.5 text-xs font-bold text-gold"
+                >
+                  <Check size={13} strokeWidth={3} aria-hidden />
+                  {a.label}
+                  <span className="sr-only"> (sudah diterapkan)</span>
+                </span>
+              ) : (
+                <button key={a.label} className="btn btn-ghost !px-3 !py-1.5 !text-xs" onClick={() => onApply(a)}>
+                  {a.label}
+                </button>
+              ),
+            )}
           </div>
+          {applied.length > 0 && hint && <p className="mt-2.5 text-xs font-semibold text-gold">{hint}</p>}
         </div>
         {onDismiss && (
           <button

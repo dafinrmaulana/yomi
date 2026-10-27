@@ -6,7 +6,7 @@ import { ConfirmDialog } from '../components/Modal'
 import Petals from '../components/Petals'
 import Scenery from '../components/Scenery'
 import Sharingan, { sharinganLevel } from '../components/Sharingan'
-import { adviceFor, type AdviceAction, type SessionLog } from '../lib/advice'
+import { adviceFor, type Advice, type AdviceAction, type SessionLog } from '../lib/advice'
 import { KANA_BY_ID, SCRIPT_LABEL } from '../lib/kana'
 import {
   checkKana,
@@ -46,6 +46,9 @@ type Status = 'idle' | 'ok' | 'bad'
 
 /** saran naik level hanya muncul bila jawaban beruntun sebanyak ini benar semua (tanpa salah di antaranya) */
 const STREAK_FOR_UP = 10
+
+/** tiap kelipatan ini, sesi diajak selesai atau istirahat */
+const MILESTONE = 50
 
 function avgSeconds(speed: Record<string, SpeedStat>) {
   const all = Object.values(speed)
@@ -211,11 +214,14 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
     setPicked(null)
     setStatus('idle')
     setXpPop(null)
+    setPinned(null)
     shownAt.current = Date.now()
   }
 
   const [confirm, setConfirm] = useState<'exit' | 'mode' | null>(null)
   const [dismissed, setDismissed] = useState<string[]>([])
+  // saran yang sudah diterapkan tetap tampil (sebagai chip) sampai pemain menekan Lanjut
+  const [pinned, setPinned] = useState<{ advice: Advice; applied: string[] } | null>(null)
 
   const exit = () => {
     if (answered > 0) setConfirm('exit')
@@ -236,8 +242,20 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
     log.current = {}
   }, [config.mode, config.length, config.pool.length])
 
+  // tiap kelipatan MILESTONE soal: ajak selesai/istirahat untuk melihat statistik (hanya sesi yang boleh diakhiri)
+  const milestone: Advice | undefined =
+    canFinish && answered >= MILESTONE && answered % MILESTONE === 0 && !dismissed.includes(`milestone|${answered}`)
+      ? {
+          kind: 'milestone',
+          key: `milestone|${answered}`,
+          title: `${answered} soal selesai!`,
+          body: 'Waktunya selesai atau istirahat sebentar. Simpan hasilnya dan lihat statistikmu, atau lanjut kalau masih segar.',
+          actions: [{ kind: 'finish', label: 'Selesai & lihat hasil' }],
+        }
+      : undefined
+
   // saran dinilai dari huruf-huruf terlemah di pengaturan ini, dihitung ulang tiap pindah soal
-  const advice = onApplyAdvice
+  const settingsAdvice = onApplyAdvice
     ? adviceFor(
         { mode: config.mode, length: config.length, selected: config.pool.map((k) => k.id), direction: config.direction },
         merged(),
@@ -245,6 +263,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         log.current,
       ).find((a) => !dismissed.includes(a.key) && (a.kind !== 'up' || combo >= STREAK_FOR_UP))
     : undefined
+  const advice = milestone ?? settingsAdvice
 
   const handleKey = (e: KeyboardEvent) => {
     // Enter saat IME (keyboard Jepang) masih menyusun kata hanya mengonfirmasi konversi
@@ -440,13 +459,22 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         style={kb.open && kb.inset ? { bottom: kb.inset } : undefined}
       >
         {/* saran muncul bersama umpan balik jawaban (setelah Periksa/Lewati), melayang di atas bar */}
-        {advice && !compact && status !== 'idle' && (
+        {(pinned?.advice ?? advice) && !compact && status !== 'idle' && (
           <div className="absolute inset-x-4 bottom-full mb-3">
             <div className="mx-auto max-w-2xl">
               <AdviceCard
-                advice={advice}
-                onApply={(a) => onApplyAdvice?.(a)}
-                onDismiss={() => setDismissed((d) => [...d, advice.key])}
+                advice={(pinned?.advice ?? advice)!}
+                applied={pinned?.applied}
+                hint={`Aturan baru siap. Tekan ${config.hearts && hearts <= 0 ? 'Selesai' : 'Lanjut'} untuk memulai soal berikutnya dengan pengaturan ini.`}
+                onApply={(a) => {
+                  if (a.kind === 'finish') return finish(false)
+                  onApplyAdvice?.(a)
+                  setPinned((p) => ({ advice: (p?.advice ?? advice)!, applied: [...(p?.applied ?? []), a.label] }))
+                }}
+                onDismiss={() => {
+                  if (pinned) setPinned(null)
+                  else if (advice) setDismissed((d) => [...d, advice.key])
+                }}
               />
             </div>
           </div>

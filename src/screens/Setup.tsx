@@ -2,7 +2,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import AdviceCard from '../components/AdviceCard'
 import Petals from '../components/Petals'
-import { adviceFor, applyAction } from '../lib/advice'
+import { adviceFor, applyAction, type Advice } from '../lib/advice'
 import { GROUPS, KIND_LABEL, SCRIPT_LABEL, groupTitle, type Kana, type Script } from '../lib/kana'
 import type { AnswerMode, Direction, FreeSettings, SpeedStat } from '../lib/storage'
 
@@ -139,7 +139,8 @@ export default function Setup({ settings, stats, speed, onChange, onStart, onBac
         { v: 'mix', title: 'Campur', desc: 'Selang-seling ketik dan pilihan.' },
       ]
   const count = settings.selected.length
-  const advice = adviceFor(settings, stats, speed)[0]
+  const [pinned, setPinned] = useState<{ advice: Advice; applied: string[] } | null>(null)
+  const advice = pinned?.advice ?? adviceFor(settings, stats, speed)[0]
 
   return (
     <div className="desk relative min-h-dvh">
@@ -158,7 +159,16 @@ export default function Setup({ settings, stats, speed, onChange, onStart, onBac
 
         {advice && (
           <div className="mb-8">
-            <AdviceCard advice={advice} onApply={(a) => onChange(applyAction(settings, a))} />
+            <AdviceCard
+              advice={advice}
+              applied={pinned?.applied}
+              hint="Aturan baru sudah terpasang. Tekan Mulai latihan di bawah untuk memakainya."
+              onApply={(a) => {
+                onChange(applyAction(settings, a))
+                setPinned((p) => ({ advice: p?.advice ?? advice, applied: [...(p?.applied ?? []), a.label] }))
+              }}
+              onDismiss={pinned ? () => setPinned(null) : undefined}
+            />
           </div>
         )}
 
