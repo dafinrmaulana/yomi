@@ -10,7 +10,7 @@ interface Props {
   /** arah tulis: tiap kotak diisi huruf Jepang lewat IME */
   write?: boolean
   /** mode kata nyata: pembagian kata; arti tiap kata muncul di bawah preview setelah katanya lengkap */
-  words?: { meaning: string; len: number }[]
+  words?: { meaning?: string; len: number }[]
 }
 
 /** pindah otomatis bila isi kotak sudah pasti utuh (tidak ada romaji lain yang lebih panjang) */
@@ -66,18 +66,18 @@ export default function AnswerBoxes({ seq, values, onChange, disabled, compact, 
   const joined = seq.map((_, i) => values[i] ?? '').join('')
 
   return (
-    <div className={`flex w-fit max-w-[min(100%,28rem)] flex-col items-start sm:items-center ${compact ? 'mt-3 gap-2' : 'mt-8 gap-3'}`}>
+    <div className={`flex w-fit max-w-[min(100%,28rem)] flex-col items-start ${compact ? 'mt-3 gap-2' : 'mt-8 gap-3'}`}>
       {words ? (
-        <div className="flex flex-wrap items-start justify-start gap-x-4 gap-y-2 sm:justify-center" aria-live="polite">
+        <div className="flex flex-wrap items-start justify-center gap-x-4 gap-y-2 self-center" aria-live="polite">
           {words.map((w, wi) => {
             const from = words.slice(0, wi).reduce((a, x) => a + x.len, 0)
             const text = seq.slice(from, from + w.len).map((_, i) => values[from + i] ?? '').join('')
-            const complete = seq.slice(from, from + w.len).every((k, i) => {
+            const complete = !!w.meaning && seq.slice(from, from + w.len).every((k, i) => {
               const v = (values[from + i] ?? '').toLowerCase()
               return write ? v === k.char : k.romaji.includes(v)
             })
             return (
-              <div key={wi} className="flex flex-col items-start sm:items-center">
+              <div key={wi} className="flex flex-col items-center">
                 <span
                   className={`rounded-[3px] px-1 font-bold tracking-[0.12em] transition-colors ${compact ? 'min-h-7 text-xl' : 'min-h-9 text-3xl'} ${write ? 'font-jp' : ''} ${
                     text ? 'text-bone' : 'text-mute/40'
@@ -101,7 +101,7 @@ export default function AnswerBoxes({ seq, values, onChange, disabled, compact, 
       ) : (
         seq.length > 1 && (
           <p
-            className={`min-h-9 break-all text-left font-bold sm:text-center tracking-[0.18em] ${compact ? 'text-xl' : 'text-3xl'} ${write ? 'font-jp' : ''} ${joined ? 'text-bone' : 'text-mute/40'}`}
+            className={`min-h-9 break-all self-center text-center font-bold tracking-[0.18em] ${compact ? 'text-xl' : 'text-3xl'} ${write ? 'font-jp' : ''} ${joined ? 'text-bone' : 'text-mute/40'}`}
             aria-live="polite"
           >
             {joined || (write ? 'huruf Jepang…' : 'romaji…')}

@@ -13,8 +13,6 @@ export interface FreeSettings {
   answer: AnswerMode
   /** kosong pada data lama = 'read' */
   direction?: Direction
-  /** mode gabungan: susun dari kata nyata, bukan huruf acak */
-  words?: boolean
 }
 
 export interface DayStat {

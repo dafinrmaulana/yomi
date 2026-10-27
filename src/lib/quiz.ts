@@ -1,5 +1,5 @@
 import { ALL_KANA, type Kana } from './kana'
-import { pickWords } from './words'
+import { pickWords, type Segment } from './words'
 import type { AnswerMode, Direction, QuizMode, SpeedStat } from './storage'
 
 export interface QuizConfig {
@@ -44,7 +44,7 @@ export interface Question {
   /** romaji (arah baca) atau huruf Jepang (arah tulis) */
   options: string[]
   /** pembagian rangkaian jadi kata beserta artinya (hanya mode kata nyata) */
-  words?: { meaning: string; len: number }[]
+  words?: Segment[]
 }
 
 type Stats = Record<string, { r: number; w: number }>
@@ -150,6 +150,42 @@ export function requeue(cfg: QuizConfig, k: Kana) {
   deck.splice(Math.max(0, deck.length - gap), 0, k)
 }
 
+/** porsi soal gabungan yang disusun dari kata nyata */
+const WORD_SHARE = 0.7
+
+/*
+ * Soal gabungan tidak boleh sama dengan yang sudah keluar di sesi ini, kecuali memang sengaja diulang:
+ * rangkaian yang dijawab salah atau lambat dimunculkan lagi beberapa soal kemudian, paling banyak MAX_RETRIES kali,
+ * dan berhenti begitu dijawab benar dan cepat.
+ */
+const keyOf = (seq: Kana[]) => seq.map((k) => k.id).join()
+const seen = new WeakMap<QuizConfig, Set<string>>()
+const retryQueue = new WeakMap<QuizConfig, { seq: Kana[]; words?: Segment[]; due: number }[]>()
+const retryTries = new WeakMap<QuizConfig, Map<string, number>>()
+const MAX_RETRIES = 2
+const SEEN_LIMIT = 500
+
+export function scheduleRetry(cfg: QuizConfig, q: Question) {
+  if (cfg.mode !== 'combined') return
+  const key = keyOf(q.seq)
+  const tries = retryTries.get(cfg) ?? new Map<string, number>()
+  retryTries.set(cfg, tries)
+  const n = tries.get(key) ?? 0
+  if (n >= MAX_RETRIES) {
+    tries.delete(key)
+    return
+  }
+  tries.set(key, n + 1)
+  const list = retryQueue.get(cfg) ?? []
+  if (!list.some((r) => keyOf(r.seq) === key)) list.push({ seq: q.seq, words: q.words, due: 3 + Math.floor(Math.random() * 3) })
+  retryQueue.set(cfg, list)
+}
+
+/** rangkaian dijawab benar dan cepat: hentikan pengulangannya */
+export function clearRetry(cfg: QuizConfig, q: Question) {
+  retryTries.get(cfg)?.delete(keyOf(q.seq))
+}
+
 export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string, speed: Speed = {}): Question {
   const limit = slowMs(cfg.direction)
   const pickOne = (): Kana => {
@@ -161,13 +197,43 @@ export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string, s
   }
 
   const len = cfg.mode === 'single' ? 1 : cfg.length
-  if (cfg.words && cfg.mode === 'combined') {
-    const w = pickWords([...cfg.pool, ...cfg.review], stats, len, avoidKey)
-    if (w) return { seq: w.seq, type: 'type', options: [], words: w.words }
+
+  let seq: Kana[]
+  let words: Segment[] | undefined
+  if (cfg.mode === 'combined') {
+    // pengulangan yang disengaja: rangkaian yang tadi salah/lambat dan sudah waktunya muncul lagi
+    const queue = retryQueue.get(cfg)
+    if (queue?.length) {
+      queue.forEach((r) => r.due--)
+      const i = queue.findIndex((r) => r.due <= 0 && keyOf(r.seq) !== avoidKey)
+      if (i >= 0) {
+        const [r] = queue.splice(i, 1)
+        return { seq: r.seq, type: 'type', options: [], words: r.words }
+      }
+    }
+
+    // rangkaian baru: kebanyakan dari kata nyata (arti ditampilkan), sisanya huruf acak biasa supaya huruf
+    // yang jarang ada di kata tetap terlatih. Dicoba ulang bila sama dengan yang pernah keluar di sesi ini.
+    const used = seen.get(cfg) ?? new Set<string>()
+    seen.set(cfg, used)
+    const make = () => {
+      if (cfg.words && Math.random() < WORD_SHARE) {
+        const w = pickWords([...cfg.pool, ...cfg.review], stats, len, (n) => Array.from({ length: n }, pickOne), avoidKey)
+        if (w) return { seq: w.seq, words: w.words }
+      }
+      return { seq: Array.from({ length: len }, pickOne), words: undefined }
+    }
+    let out = make()
+    for (let attempt = 0; attempt < 10 && (used.has(keyOf(out.seq)) || keyOf(out.seq) === avoidKey); attempt++) out = make()
+    if (used.size >= SEEN_LIMIT) used.clear()
+    used.add(keyOf(out.seq))
+    ;({ seq, words } = out)
+    return { seq, type: 'type', options: [], words }
   }
-  let seq: Kana[] = Array.from({ length: len }, pickOne)
-  // soal yang persis sama dengan sebelumnya: ambil ulang sekali (kocokan tetap berjalan)
-  if (avoidKey && seq.map((k) => k.id).join() === avoidKey && cfg.pool.length > 1) {
+
+  seq = Array.from({ length: len }, pickOne)
+  // satu huruf: yang persis sama dengan sebelumnya diambil ulang sekali (kocokan tetap berjalan)
+  if (avoidKey && keyOf(seq) === avoidKey && cfg.pool.length > 1) {
     seq = Array.from({ length: len }, pickOne)
   }
 

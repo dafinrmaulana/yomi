@@ -56,8 +56,23 @@ const maxWords = (length: number) => Math.max(3, Math.ceil(length / 2.5))
  * Kata yang mengandung huruf butuh-latihan lebih sering dipilih. Panjang yang tidak ada kata tunggalnya
  * diisi dengan merangkai beberapa kata. Mengembalikan null bila pool terlalu kecil untuk membentuk kata.
  */
-/** `avoid`: kunci soal sebelumnya (id huruf dipisah koma) agar tidak sama dua kali */
-export function pickWords(pool: Kana[], stats: Stats, length: number, avoid?: string): { seq: Kana[]; words: { meaning: string; len: number }[] } | null {
+/** bagian rangkaian: kata nyata (punya arti) atau huruf pengisi (tanpa arti) */
+export interface Segment {
+  meaning?: string
+  len: number
+}
+
+/**
+ * `avoid`: kunci soal sebelumnya (id huruf dipisah koma) agar tidak sama dua kali.
+ * `filler`: pengambil huruf untuk sisa panjang yang tidak bisa diisi kata nyata (tanpa arti).
+ */
+export function pickWords(
+  pool: Kana[],
+  stats: Stats,
+  length: number,
+  filler: (n: number) => Kana[],
+  avoid?: string,
+): { seq: Kana[]; words: Segment[] } | null {
   const ids = new Set(pool.map((k) => k.id))
   const fit = WORDS.filter((w) => w.ids.every((id) => ids.has(id)))
   if (fit.length === 0) return null
@@ -92,11 +107,16 @@ export function pickWords(pool: Kana[], stats: Stats, length: number, avoid?: st
       parts.push(choose(from))
       rest -= parts[parts.length - 1].seq.length
     }
-    const total = parts.reduce((a, w) => a + w.seq.length, 0)
-    if (total < Math.min(length, 2)) continue
+    if (parts.length === 0) continue
+    const segments: Segment[] = parts.map((w) => ({ meaning: w.meaning, len: w.seq.length }))
     const seq = parts.flatMap((w) => w.seq)
+    // sisa yang tak muat kata nyata diisi huruf biasa (tanpa arti), supaya panjangnya tetap sesuai pengaturan
+    if (rest > 0) {
+      seq.push(...filler(rest))
+      segments.push({ len: rest })
+    }
     if (seq.map((k) => k.id).join() === avoid && fit.length > 1) continue
-    return { seq, words: parts.map((w) => ({ meaning: w.meaning, len: w.seq.length })) }
+    return { seq, words: segments }
   }
   return null
 }

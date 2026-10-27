@@ -1,3 +1,4 @@
+import { ArrowRight } from 'lucide-react'
 import AppHeader from '../components/AppHeader'
 import Petals from '../components/Petals'
 import Torii from '../components/Torii'
@@ -92,7 +93,10 @@ export default function Hub() {
                   <div className="relative mt-4 flex items-center justify-between text-sm font-extrabold">
                     {it.to ? (
                       <>
-                        <span className="text-[#8f1623]">{it.featured ? 'Mulai berlatih →' : 'Buka →'}</span>
+                        <span className="inline-flex items-center gap-1.5 text-[#8f1623]">
+                          {it.featured ? 'Mulai berlatih' : 'Buka'}
+                          <ArrowRight size={16} strokeWidth={2.75} className="shrink-0" aria-hidden />
+                        </span>
                         {it.note && <span className="text-xs font-semibold text-[#5e503c]">{it.note}</span>}
                       </>
                     ) : (

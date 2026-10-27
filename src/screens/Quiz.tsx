@@ -11,8 +11,10 @@ import { KANA_BY_ID, SCRIPT_LABEL } from '../lib/kana'
 import {
   checkKana,
   isChoiceAnswer,
+  clearRetry,
   makeQuestion,
   requeue,
+  scheduleRetry,
   slowMs,
   pickPraise,
   promptRomaji,
@@ -157,6 +159,9 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         s.recent = [...(s.recent ?? []), each].slice(-SPEED_WINDOW)
         if (each > slowMs(config.direction)) requeue(config, k)
       }
+      // rangkaian lambat dijawab diulang beberapa soal lagi; yang sudah benar dan cepat tidak diulang
+      if (each > slowMs(config.direction)) scheduleRetry(config, q)
+      else clearRetry(config, q)
       const gain = questionXp(q.seq.length)
       setStatus('ok')
       setLastMs(Date.now() - shownAt.current)
@@ -169,6 +174,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
       play(() => sfx.correct(combo))
     } else {
       setStatus('bad')
+      scheduleRetry(config, q)
       setWrong((w) => w + 1)
       setCombo(0)
       if (config.hearts) setHearts((h) => h - 1)
