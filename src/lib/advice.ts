@@ -17,16 +17,11 @@ export interface Advice {
   actions: AdviceAction[]
 }
 
-/** catatan sesi berjalan per huruf (sejak pengaturan terakhir berubah): benar, salah, dan benar-cepat */
-export type SessionLog = Record<string, { r: number; w: number; fast: number }>
-
 const MAX_LENGTH = 6
 /** jumlah huruf terlemah yang diuji */
 const SAMPLE = 8
-/** minimal jawaban benar-cepat per huruf sampel di sesi berjalan */
-const FAST_NEEDED = 2
 const MIN_ACC = 0.9
-/** tanpa sesi berjalan (Meja Latihan): minimal jawaban per huruf dari riwayat */
+/** minimal jawaban per huruf sebelum dinilai */
 const MIN_ATTEMPTS = 3
 
 export function applyAction(s: FreeSettings, a: AdviceAction): FreeSettings {
@@ -54,15 +49,13 @@ function nextGroup(selected: Set<string>, firstScript: Script) {
 /**
  * Saran latihan. Yang diuji adalah sampel huruf terlemah (belum dilatih, sering salah, atau lambat),
  * bukan sembarang soal: kalau huruf tersulit sudah lancar, sisanya pasti ikut lancar.
- * - Naik level: tiap huruf sampel benar-cepat >= 2x di sesi ini dan akurasinya >= 90%
- *   (tanpa sesi berjalan, dinilai dari riwayat: >= 3 jawaban, akurasi >= 90%, tidak lambat).
+ * - Naik level: tiap huruf sampel punya >= 3 jawaban, akurasi >= 90%, dan tidak lambat.
  * - Fokus: sebagian huruf masih sering salah atau lambat.
  */
 export function adviceFor(
   s: Pick<FreeSettings, 'mode' | 'length' | 'selected' | 'direction'>,
   stats: Stats,
   speed: Record<string, SpeedStat>,
-  session?: SessionLog,
 ): Advice[] {
   const limit = slowMs(s.direction)
   const rated: Rated[] = []
@@ -83,15 +76,7 @@ export function adviceFor(
   const key = `${s.mode}|${s.length}|${s.selected.length}`
   const out: Advice[] = []
 
-  const passed = session
-    ? (() => {
-        const logs = sample.map((r) => session[r.k.id])
-        if (logs.some((l) => !l || l.fast < FAST_NEEDED)) return false
-        const right = logs.reduce((a, l) => a + l.r, 0)
-        const wrong = logs.reduce((a, l) => a + l.w, 0)
-        return right / (right + wrong) >= MIN_ACC
-      })()
-    : sample.every((r) => r.n >= MIN_ATTEMPTS && r.acc >= MIN_ACC && !r.slow)
+  const passed = sample.every((r) => r.n >= MIN_ATTEMPTS && r.acc >= MIN_ACC && !r.slow)
 
   if (passed) {
     const actions: AdviceAction[] = []
@@ -116,8 +101,7 @@ export function adviceFor(
   // fokus: cukup banyak huruf yang sudah dicoba tapi masih goyah
   const tried = rated.filter((r) => r.n >= MIN_ATTEMPTS)
   const weak = tried.filter((r) => r.acc < 0.8 || r.slow).sort((a, b) => a.acc - b.acc)
-  const played = session ? Object.values(session).reduce((a, l) => a + l.r + l.w, 0) : MIN_ATTEMPTS
-  if (played >= 10 && tried.length >= 3 && weak.length / tried.length >= 0.3) {
+  if (tried.length >= 3 && weak.length / tried.length >= 0.3) {
     const worst = weak.slice(0, SAMPLE)
     const actions: AdviceAction[] = []
     if (s.mode === 'combined') actions.push({ kind: 'mode', value: 'single', label: 'Latihan per huruf' })

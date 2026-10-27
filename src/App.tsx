@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { applyAction, type AdviceAction } from './lib/advice'
+import { adviceFor, applyAction, type AdviceAction } from './lib/advice'
 import { AppContext } from './lib/app-context'
 import { GROUPS } from './lib/kana'
 import { lessonConfig, type PathNode } from './lib/path'
@@ -70,12 +70,21 @@ function Routes() {
 
   const startFree = () => startQuiz(freeConfig(progress.free))
 
-  // saran dari dalam game: ubah pengaturan dan lanjutkan sesi yang sama (skor tidak direset)
+  // saran di halaman hasil: ubah pengaturan lalu langsung mulai sesi baru dengan pengaturan itu
   const applyAdvice = (action: AdviceAction) => {
     const next = applyAction(progress.free, action)
     patch({ free: next })
-    setQuiz((q) => (q && q.config.kind === 'free' ? { ...q, config: freeConfig(next) } : q))
+    startQuiz(freeConfig(next), true)
   }
+
+  const adviceForConfig = (c: QuizConfig) =>
+    c.kind === 'free'
+      ? adviceFor(
+          { mode: c.mode, length: c.length, selected: c.pool.map((k) => k.id), direction: c.direction },
+          progress.stats,
+          progress.speed,
+        )[0]
+      : undefined
 
   const finish = (result: QuizResult) => {
     const done = result.config.kind === 'path' && !result.failed
@@ -108,7 +117,6 @@ function Routes() {
         onFinish={finish}
         onExit={() => back(returnPath(quiz.config))}
         onSwitchMode={quiz.config.kind === 'free' ? () => switchMode(quiz.config) : undefined}
-        onApplyAdvice={quiz.config.kind === 'free' ? applyAdvice : undefined}
       />
     )
   else if (path === '/result' && summary)
@@ -116,6 +124,8 @@ function Routes() {
       <Summary
         result={summary.result}
         bonusXp={summary.bonus}
+        advice={adviceForConfig(summary.result.config)}
+        onApplyAdvice={applyAdvice}
         onRetry={() => startQuiz(summary.result.config, true)}
         onBack={() => back(returnPath(summary.result.config))}
       />
