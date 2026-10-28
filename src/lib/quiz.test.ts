@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { ALL_KANA, GROUPS, type Kana } from './kana'
-import { checkKana, isChoiceAnswer, makeQuestion, promptRomaji, starsFor, type QuizConfig } from './quiz'
+import { QuestionGenerator } from './generator'
+import { checkKana, isChoiceAnswer, promptRomaji, starsFor, type QuizConfig } from './quiz'
 
 const byChar = (chars: string): Kana[] => [...chars].map((c) => ALL_KANA.find((k) => k.char === c)!)
 
@@ -62,7 +63,13 @@ describe('starsFor', () => {
   })
 })
 
-describe('makeQuestion', () => {
+describe('QuestionGenerator.next', () => {
+  const makeQuestion = (cfg: QuizConfig, stats: Record<string, { r: number; w: number }>) => gen.next(cfg, stats)
+  let gen: QuestionGenerator
+  beforeEach(() => {
+    gen = new QuestionGenerator()
+  })
+
   it('per huruf: tiap huruf di pool keluar sekali sebelum ada yang terulang', () => {
     const cfg = config({ pool: byChar('あいうえお') })
     // semua huruf sudah terlatih, jadi tidak ada kartu tambahan di kocokan
@@ -128,5 +135,52 @@ describe('makeQuestion', () => {
     const cfg = config({ mode: 'combined', length: 4, words: true, pool: GROUPS.hiragana.slice(0, 6).flatMap((g) => g.kana) })
     const keys = Array.from({ length: 40 }, () => makeQuestion(cfg, {}).seq.map((k) => k.id).join())
     expect(new Set(keys).size).toBe(keys.length)
+  })
+})
+
+describe('QuestionGenerator: keadaan per instance', () => {
+  it('dua generator tidak berbagi kocokan atau riwayat soal', () => {
+    const cfg = config({ pool: byChar('あいうえお') })
+    const stats = Object.fromEntries(cfg.pool.map((k) => [k.id, { r: 9, w: 0 }]))
+    const a = new QuestionGenerator()
+    const b = new QuestionGenerator()
+    const fromA = Array.from({ length: 5 }, () => a.next(cfg, stats).seq[0].id)
+    const fromB = Array.from({ length: 5 }, () => b.next(cfg, stats).seq[0].id)
+    expect(new Set(fromA).size).toBe(5)
+    expect(new Set(fromB).size).toBe(5)
+  })
+
+  it('rangkaian yang salah dijadwalkan ulang, paling banyak dua kali', () => {
+    const cfg = config({ mode: 'combined', length: 3 })
+    const gen = new QuestionGenerator()
+    const q = gen.next(cfg, {})
+    const key = q.seq.map((k) => k.id).join()
+    let repeats = 0
+    for (let round = 0; round < 3; round++) {
+      gen.scheduleRetry(cfg, q)
+      for (let i = 0; i < 8; i++) {
+        if (gen.next(cfg, {}).seq.map((k) => k.id).join() === key) {
+          repeats++
+          break
+        }
+      }
+    }
+    expect(repeats).toBe(2)
+  })
+
+  it('clearRetry (dijawab benar dan cepat) mengosongkan hitungan ulang sehingga jatah ulang pulih', () => {
+    const cfg = config({ mode: 'combined', length: 3 })
+    const gen = new QuestionGenerator()
+    const q = gen.next(cfg, {})
+    const key = q.seq.map((k) => k.id).join()
+    const shownAgain = () => {
+      gen.scheduleRetry(cfg, q)
+      for (let i = 0; i < 8; i++) if (gen.next(cfg, {}).seq.map((k) => k.id).join() === key) return true
+      return false
+    }
+    expect(shownAgain()).toBe(true)
+    expect(shownAgain()).toBe(true)
+    gen.clearRetry(cfg, q)
+    expect(shownAgain()).toBe(true)
   })
 })

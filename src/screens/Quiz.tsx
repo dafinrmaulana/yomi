@@ -8,14 +8,11 @@ import Scenery from '../components/Scenery'
 import Sharingan, { pickMangekyo, sharinganLevel } from '../components/Sharingan'
 import TileBank from '../components/TileBank'
 import { adviceFor, NEAR_UP, STREAK_FOR_UP, TEST_MISSES, testMisses, upProgress, type Advice, type AdviceAction, type SessionLog } from '../lib/advice'
+import { QuestionGenerator } from '../lib/generator'
 import { KANA_BY_ID, SCRIPT_LABEL } from '../lib/kana'
 import {
   checkKana,
   isChoiceAnswer,
-  clearRetry,
-  makeQuestion,
-  requeue,
-  scheduleRetry,
   slowMs,
   pickPraise,
   promptRomaji,
@@ -90,7 +87,8 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
     return out
   }, [pastSpeed])
 
-  const [q, setQ] = useState<Question>(() => makeQuestion(config, stats, undefined, pastSpeed))
+  const [gen] = useState(() => new QuestionGenerator())
+  const [q, setQ] = useState<Question>(() => gen.next(config, stats, undefined, pastSpeed))
   const [qNo, setQNo] = useState(1)
   const [parts, setParts] = useState<string[]>([])
   // arah tulis tanpa keyboard: indeks kepingan yang sudah dipasang
@@ -181,11 +179,11 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         s.n++
         s.ms += each
         s.recent = [...(s.recent ?? []), each].slice(-SPEED_WINDOW)
-        if (each > slowMs(config.direction)) requeue(config, k)
+        if (each > slowMs(config.direction)) gen.requeue(config, k)
       }
       // rangkaian lambat dijawab diulang beberapa soal lagi; yang sudah benar dan cepat tidak diulang
-      if (each > slowMs(config.direction)) scheduleRetry(config, q)
-      else clearRetry(config, q)
+      if (each > slowMs(config.direction)) gen.scheduleRetry(config, q)
+      else gen.clearRetry(config, q)
       const gain = questionXp(q.seq.length)
       setStatus('ok')
       setLastMs(Date.now() - shownAt.current)
@@ -198,7 +196,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
       play(() => sfx.correct(combo))
     } else {
       setStatus('bad')
-      scheduleRetry(config, q)
+      gen.scheduleRetry(config, q)
       setWrong((w) => w + 1)
       setCombo(0)
       if (config.hearts) setHearts((h) => h - 1)
@@ -229,7 +227,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
     if (config.hearts && hearts <= 0) return finish(true)
     if (config.total !== null && answered >= config.total) return finish(false)
     const key = q.seq.map((k) => k.id).join()
-    setQ(makeQuestion(config, merged(), key, mergedSpeed()))
+    setQ(gen.next(config, merged(), key, mergedSpeed()))
     setQNo((n) => n + 1)
     setParts([])
     setTilePicks([])
