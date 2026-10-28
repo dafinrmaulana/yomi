@@ -44,7 +44,7 @@ export default function Summary({ result, bonusXp, onRetry, onBack }: Props) {
       {celebrate && <Confetti />}
       <div className="relative z-10 w-full max-w-lg text-center">
         <div className="animate-pop mx-auto mb-4 w-fit">
-          <Sharingan level={failed ? 1 : acc >= 90 ? 4 : 3} size={120} spin={!failed} />
+          <Sharingan level={failed ? 1 : acc >= 90 ? 4 : 3} variant={result.mangekyo} size={120} spin={!failed} />
         </div>
         <h1 className="text-4xl font-black text-glow">{title}</h1>
         <p className="mt-2 text-mute">{sub}</p>

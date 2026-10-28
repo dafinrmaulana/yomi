@@ -5,9 +5,9 @@ import Hearts from '../components/Hearts'
 import { ConfirmDialog } from '../components/Modal'
 import Petals from '../components/Petals'
 import Scenery from '../components/Scenery'
-import Sharingan, { sharinganLevel } from '../components/Sharingan'
+import Sharingan, { pickMangekyo, sharinganLevel } from '../components/Sharingan'
 import TileBank from '../components/TileBank'
-import { adviceFor, TEST_MISSES, testMisses, type Advice, type AdviceAction, type SessionLog } from '../lib/advice'
+import { adviceFor, NEAR_UP, STREAK_FOR_UP, TEST_MISSES, testMisses, upProgress, type Advice, type AdviceAction, type SessionLog } from '../lib/advice'
 import { KANA_BY_ID, SCRIPT_LABEL } from '../lib/kana'
 import {
   checkKana,
@@ -45,9 +45,6 @@ interface Props {
 
 type Status = 'idle' | 'ok' | 'bad'
 
-/** saran naik level hanya muncul bila jawaban beruntun sebanyak ini benar semua, dihitung sejak pengaturan terakhir berubah */
-const STREAK_FOR_UP = 10
-
 /** tiap kelipatan ini, sesi diajak selesai atau istirahat */
 const MILESTONE = 50
 
@@ -67,6 +64,9 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
   const run = useRef(0)
   // masa tes naik level: dimulai ulang dari kosong setiap ada jawaban salah atau pengaturan berubah
   const test = useRef<SessionLog>({})
+  // apakah tes naik level sedang "dekat" (dibaca saat jawaban dinilai), dan sudah salah sekali saat dekat
+  const nearRef = useRef(false)
+  const [warned, setWarned] = useState(false)
   const speed = useRef<Record<string, SpeedStat>>({})
   const kb = useKeyboard()
   const direction = config.direction ?? 'read'
@@ -110,7 +110,8 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
   const [xpPop, setXpPop] = useState<{ n: number; key: number } | null>(null)
 
   const answered = correct + wrong
-  const level = sharinganLevel(combo)
+  // Mangekyō berganti tiap permainan
+  const [mangekyo] = useState(pickMangekyo)
   const play = (fn: () => void) => {
     if (!mute) fn()
   }
@@ -136,6 +137,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
       weak,
       failed,
       stars: failed ? 0 : starsFor(correct, wrong),
+      mangekyo,
     })
   }
 
@@ -165,6 +167,10 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
     else if (testMisses(test.current) > TEST_MISSES) {
       test.current = {}
       run.current = 0
+      setWarned(false)
+    } else if (nearRef.current) {
+      // sudah dekat lalu salah (masih dalam toleransi): Mangekyō menyala sebagai peringatan terakhir
+      setWarned(true)
     }
 
     if (ok) {
@@ -258,6 +264,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
     log.current = {}
     test.current = {}
     run.current = 0
+    setWarned(false)
   }, [config.mode, config.length, config.pool.length])
 
   // tiap kelipatan MILESTONE soal: ajak selesai/istirahat untuk melihat statistik (hanya sesi yang boleh diakhiri)
@@ -283,6 +290,24 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
       ).find((a) => !dismissed.includes(a.key) && (a.kind !== 'up' || run.current >= STREAK_FOR_UP))
     : undefined
   const advice = milestone ?? settingsAdvice
+
+  // mata latar: ikut combo; mendekati saran naik level jadi Rinnegan, saat saran muncul Rinnegan bertomoe,
+  // dan bila sudah dekat tapi satu kesempatan salah terpakai, Mangekyō menyala berdenyut sebagai peringatan
+  const comboLevel = sharinganLevel(combo)
+  const upReady = settingsAdvice?.kind === 'up'
+  const near =
+    !!onApplyAdvice &&
+    !upReady &&
+    upProgress(
+      { selected: config.pool.map((k) => k.id), direction: config.direction },
+      merged(),
+      mergedSpeed(),
+      test.current,
+      run.current,
+    ) >= NEAR_UP
+  nearRef.current = near
+  const eyePulse = warned && !upReady
+  const level = upReady ? 6 : eyePulse ? 4 : near ? 5 : comboLevel
 
   const handleKey = (e: KeyboardEvent) => {
     // Enter saat IME (keyboard Jepang) masih menyusun kata hanya mengonfirmasi konversi
@@ -335,7 +360,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
 
   return (
     <>
-    <Scenery moonLevel={level} />
+    <Scenery moonLevel={level} moonVariant={mangekyo} moonPulse={eyePulse} />
     <Petals count={10} />
     <div
       className={`relative z-10 mx-auto flex w-full max-w-2xl flex-col px-4 ${
@@ -390,7 +415,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
           {(elapsed / 1000).toFixed(1)}s
         </div>
         <div className="flex shrink-0 items-center gap-1.5" title={`Combo ${combo}`}>
-          <Sharingan level={level} size={30} />
+          <Sharingan level={level} variant={mangekyo} pulse={eyePulse} size={30} />
           <span className="min-w-5 text-sm font-extrabold tabular-nums">{combo}</span>
           <span className="hidden text-[10px] font-bold uppercase tracking-widest text-mute sm:inline">Combo</span>
         </div>
@@ -484,10 +509,21 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         style={kb.open && kb.inset ? { bottom: kb.inset } : undefined}
       >
         {/* saran muncul bersama umpan balik jawaban (setelah Periksa/Lewati), melayang di atas bar */}
-        {(pinned?.advice ?? advice) && !compact && status !== 'idle' && (
+        {((pinned?.advice ?? advice) || (eyePulse && status === 'bad')) && !compact && status !== 'idle' && (
           <div className="absolute inset-x-4 bottom-full mb-3">
-            <div className="mx-auto max-w-2xl">
-              <AdviceCard
+            <div className="mx-auto flex max-w-2xl flex-col gap-2">
+              {eyePulse && status === 'bad' && (
+                <div role="status" className="flex items-start gap-3 rounded-xl border-2 border-gold/60 bg-[#2a1d0c]/95 px-4 py-3 shadow-lg">
+                  <span className="mt-0.5 size-3 shrink-0 animate-pulse rounded-full bg-gold" aria-hidden />
+                  <div>
+                    <p className="text-sm font-extrabold text-gold">Kamu sudah dekat!</p>
+                    <p className="text-sm text-[#e8d9b4]">
+                      Satu salah tadi masih ditoleransi, jadi kesempatanmu belum hilang. Jawab benar terus sampai saran naik level muncul, tapi satu salah lagi mengulang tesnya dari awal.
+                    </p>
+                  </div>
+                </div>
+              )}
+              {(pinned?.advice ?? advice) && <AdviceCard
                 advice={(pinned?.advice ?? advice)!}
                 applied={pinned?.applied}
                 hint={`Aturan baru siap. Tekan ${config.hearts && hearts <= 0 ? 'Selesai' : 'Lanjut'} untuk memulai soal berikutnya dengan pengaturan ini.`}
@@ -500,7 +536,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
                   if (pinned) setPinned(null)
                   else if (advice) setDismissed((d) => [...d, advice.key])
                 }}
-              />
+              />}
             </div>
           </div>
         )}

@@ -1,4 +1,5 @@
 import { ALL_KANA, type Kana } from './kana'
+import type { Mangekyo } from '../components/Sharingan'
 import { pickWords, type Segment } from './words'
 import type { AnswerMode, Direction, QuizMode, SpeedStat, WriteInput } from './storage'
 
@@ -37,6 +38,8 @@ export interface QuizResult {
   weak: Kana[]
   failed: boolean
   stars: number
+  /** Mangekyō yang tampil di game ini, supaya halaman hasil memakai yang sama */
+  mangekyo: Mangekyo
 }
 
 export interface Question {

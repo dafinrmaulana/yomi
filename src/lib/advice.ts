@@ -31,9 +31,42 @@ const FAST_NEEDED = 2
 /** salah yang masih ditoleransi dalam satu masa tes naik level; salah lagi sesudahnya mengulang tes dari awal */
 export const TEST_MISSES = 1
 export const testMisses = (test: SessionLog) => Object.values(test).reduce((a, l) => a + l.w, 0)
+/** saran naik level hanya muncul bila jawaban benar beruntun sebanyak ini, dihitung sejak pengaturan terakhir berubah */
+export const STREAK_FOR_UP = 10
 const MIN_ACC = 0.9
 /** tanpa sesi berjalan (Meja Latihan): minimal jawaban per huruf dari riwayat */
 const MIN_ATTEMPTS = 3
+
+/**
+ * Seberapa dekat tes naik level (0–1): paling kecil dari porsi huruf yang sudah dijawab benar, porsi huruf sampel
+ * yang sudah benar-cepat, dan benar beruntun. Dipakai untuk mengubah mata latar saat saran hampir muncul.
+ */
+export function upProgress(
+  s: Pick<FreeSettings, 'selected' | 'direction'>,
+  stats: Stats,
+  speed: Record<string, SpeedStat>,
+  test: SessionLog,
+  run: number,
+): number {
+  const limit = slowMs(s.direction)
+  const rated = s.selected.flatMap((id) => {
+    const k = KANA_BY_ID[id]
+    if (!k) return []
+    const st = stats[id] ?? { r: 0, w: 0 }
+    const n = st.r + st.w
+    const recent = speed[id]?.recent
+    const avg = recent?.length ? recent.reduce((a, b) => a + b, 0) / recent.length : 0
+    return [{ id, need: (n < MIN_ATTEMPTS ? 2 : 0) + (1 - (n ? st.r / n : 0)) + (avg > limit ? 1 : 0) }]
+  })
+  if (rated.length === 0) return 0
+  const sample = [...rated].sort((a, b) => b.need - a.need).slice(0, SAMPLE)
+  const seen = rated.filter((r) => (test[r.id]?.r ?? 0) >= 1).length / rated.length
+  const fast = sample.filter((r) => (test[r.id]?.fast ?? 0) >= FAST_NEEDED).length / sample.length
+  return Math.min(seen, fast, Math.min(run / STREAK_FOR_UP, 1))
+}
+
+/** tes dianggap "hampir" bila sudah sejauh ini */
+export const NEAR_UP = 0.7
 
 export function applyAction(s: FreeSettings, a: AdviceAction): FreeSettings {
   if (a.kind === 'length') return { ...s, mode: 'combined', length: a.value }

@@ -78,6 +78,11 @@
   50% { filter: drop-shadow(0 0 18px rgba(255, 77, 94, 0.9)); }
 }
 
+@keyframes eye-warn {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.18); }
+}
+
 html, body, #root { min-height: 100%; }
 
 body {

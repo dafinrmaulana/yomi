@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
+import HelpTip from '../components/HelpTip'
 import Petals from '../components/Petals'
 import { GROUPS, KIND_LABEL, SCRIPT_LABEL, groupTitle, type Kana, type Script } from '../lib/kana'
 import type { AnswerMode, Direction, FreeSettings, WriteInput } from '../lib/storage'
@@ -38,16 +39,16 @@ function Choice({
   onClick: () => void
 }) {
   return (
-    <button
-      role="radio"
-      aria-checked={selected}
-      disabled={disabled}
-      onClick={onClick}
-      className={`flex min-w-0 flex-col gap-1 rounded-lg border-2 p-4 text-left transition ${
-        selected ? 'border-sharin bg-sharin/10' : 'border-[#3a2a20] bg-[#120c09]/80 hover:border-[#6a4b36]'
-      } ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
-    >
-      <span className="flex items-center gap-2 text-base font-bold">
+    <div className="relative">
+      <button
+        role="radio"
+        aria-checked={selected}
+        disabled={disabled}
+        onClick={onClick}
+        className={`flex w-full min-w-0 items-center gap-2 rounded-lg border-2 p-4 pr-11 text-left text-base font-bold transition ${
+          selected ? 'border-sharin bg-sharin/10' : `border-[#3a2a20] bg-[#120c09]/80 ${disabled ? '' : 'hover:border-[#6a4b36]'}`
+        } ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
+      >
         <span
           className={`grid size-5 shrink-0 place-items-center rounded-full border-2 ${
             selected ? 'border-sharin bg-sharin' : 'border-[#6a4b36]'
@@ -60,9 +61,12 @@ function Choice({
           )}
         </span>
         {title}
-      </span>
-      <span className="text-sm leading-snug text-[#b9a782]">{desc}</span>
-    </button>
+      </button>
+      {/* tombol bantuan di luar tombol pilihan (tombol tidak boleh bersarang) */}
+      <HelpTip align="right" className="absolute right-3 top-1/2 -translate-y-1/2" label={`Tentang ${title}`}>
+        {desc}
+      </HelpTip>
+    </div>
   )
 }
 

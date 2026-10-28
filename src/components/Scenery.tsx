@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { SharinganArt } from './Sharingan'
+import { SharinganArt, type Mangekyo } from './Sharingan'
 
 const Pine = ({ x, y, s = 1 }: { x: number; y: number; s?: number }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`} fill="#090508">
@@ -28,7 +28,18 @@ const Pagoda = ({ x, y }: { x: number; y: number }) => (
 )
 
 /** latar pemandangan Jepang malam: bulan merah, gunung, pagoda, torii, pinus */
-export default function Scenery({ className = '', moonLevel }: { className?: string; moonLevel?: number }) {
+export default function Scenery({
+  className = '',
+  moonLevel,
+  moonVariant,
+  moonPulse,
+}: {
+  className?: string
+  moonLevel?: number
+  moonVariant?: Mangekyo
+  /** Mangekyō menyala berdenyut sebagai peringatan */
+  moonPulse?: boolean
+}) {
   const id = useId().replace(/:/g, '')
   return (
     <div
@@ -41,10 +52,18 @@ export default function Scenery({ className = '', moonLevel }: { className?: str
         <div className="absolute right-[7%] top-[11%] aspect-square w-[min(44vw,280px)]">
           <div
             className="absolute -inset-[70%]"
-            style={{ background: 'radial-gradient(circle, rgba(214,40,57,0.4), transparent 62%)' }}
+            style={{
+              background: `radial-gradient(circle, ${moonLevel >= 5 ? 'rgba(150,120,230,0.4)' : 'rgba(214,40,57,0.4)'}, transparent 62%)`,
+              animation: moonPulse ? 'eye-warn 0.8s ease-in-out infinite' : undefined,
+            }}
           />
-          <svg key={moonLevel} viewBox="-1 -1 2 2" className="animate-pop relative h-full w-full overflow-visible opacity-90">
-            <SharinganArt level={moonLevel} />
+          <svg
+            key={moonLevel}
+            viewBox="-1 -1 2 2"
+            className="animate-pop relative h-full w-full overflow-visible opacity-90"
+            style={moonPulse ? { animation: 'pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1), glow-pulse 0.8s ease-in-out 0.35s infinite' } : undefined}
+          >
+            <SharinganArt level={moonLevel} variant={moonVariant} />
           </svg>
         </div>
       )}
