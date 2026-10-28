@@ -1,0 +1,132 @@
+import { describe, expect, it } from 'vitest'
+import { ALL_KANA, GROUPS, type Kana } from './kana'
+import { checkKana, isChoiceAnswer, makeQuestion, promptRomaji, starsFor, type QuizConfig } from './quiz'
+
+const byChar = (chars: string): Kana[] => [...chars].map((c) => ALL_KANA.find((k) => k.char === c)!)
+
+const config = (over: Partial<QuizConfig> = {}): QuizConfig => ({
+  kind: 'free',
+  title: 't',
+  pool: GROUPS.hiragana.slice(0, 2).flatMap((g) => g.kana),
+  review: [],
+  mode: 'single',
+  length: 3,
+  answer: 'type',
+  total: null,
+  hearts: false,
+  ...over,
+})
+
+describe('checkKana', () => {
+  it('benar bila ketikan persis sama, spasi diabaikan', () => {
+    expect(checkKana('かき', byChar('かき'))).toEqual({ ok: true, prefix: 2 })
+    expect(checkKana('か き', byChar('かき'))).toEqual({ ok: true, prefix: 2 })
+  })
+
+  it('menghitung huruf benar dari depan saat salah', () => {
+    expect(checkKana('かけ', byChar('かき'))).toEqual({ ok: false, prefix: 1 })
+    expect(checkKana('', byChar('か'))).toEqual({ ok: false, prefix: 0 })
+  })
+
+  it('menolak ketikan berlebih', () => {
+    expect(checkKana('かきく', byChar('かき')).ok).toBe(false)
+  })
+
+  it('mengenali yoon dua karakter sebagai satu huruf', () => {
+    expect(checkKana('きゃ', [ALL_KANA.find((k) => k.char === 'きゃ')!])).toEqual({ ok: true, prefix: 1 })
+  })
+})
+
+describe('isChoiceAnswer', () => {
+  it('arah baca memeriksa romaji, arah tulis memeriksa huruf', () => {
+    const q = { seq: byChar('し'), type: 'choice' as const, options: [] }
+    expect(isChoiceAnswer(q, 'shi')).toBe(true)
+    expect(isChoiceAnswer(q, 'ka')).toBe(false)
+    expect(isChoiceAnswer(q, 'し', 'write')).toBe(true)
+    expect(isChoiceAnswer(q, 'shi', 'write')).toBe(false)
+  })
+})
+
+describe('promptRomaji', () => {
+  it('memakai ejaan alternatif untuk huruf kembar bunyi (ぢ = di, づ = du)', () => {
+    expect(promptRomaji(byChar('じ')[0])).toBe('ji')
+    expect(promptRomaji(byChar('ぢ')[0])).not.toBe('ji')
+  })
+})
+
+describe('starsFor', () => {
+  it('bintang menurut akurasi', () => {
+    expect(starsFor(9, 1)).toBe(3)
+    expect(starsFor(7, 3)).toBe(2)
+    expect(starsFor(1, 9)).toBe(1)
+  })
+})
+
+describe('makeQuestion', () => {
+  it('per huruf: tiap huruf di pool keluar sekali sebelum ada yang terulang', () => {
+    const cfg = config({ pool: byChar('あいうえお') })
+    // semua huruf sudah terlatih, jadi tidak ada kartu tambahan di kocokan
+    const stats = Object.fromEntries(cfg.pool.map((k) => [k.id, { r: 9, w: 0 }]))
+    const drawn = Array.from({ length: 5 }, () => makeQuestion(cfg, stats).seq[0].id)
+    expect(new Set(drawn).size).toBe(5)
+  })
+
+  it('gabungan: panjang sesuai pengaturan dan jenis ketik', () => {
+    const cfg = config({ mode: 'combined', length: 6 })
+    for (let i = 0; i < 20; i++) {
+      const q = makeQuestion(cfg, {})
+      expect(q.seq).toHaveLength(6)
+      expect(q.type).toBe('type')
+    }
+  })
+
+  it('pilihan ganda: empat pilihan unik yang memuat jawaban', () => {
+    const cfg = config({ answer: 'choice' })
+    for (let i = 0; i < 30; i++) {
+      const q = makeQuestion(cfg, {})
+      expect(q.type).toBe('choice')
+      expect(new Set(q.options).size).toBe(4)
+      expect(q.options.some((o) => isChoiceAnswer(q, o))).toBe(true)
+    }
+  })
+
+  it('arah tulis: pilihan ganda berisi huruf Jepang tanpa bacaan yang bentrok', () => {
+    const cfg = config({ direction: 'write', answer: 'type' })
+    for (let i = 0; i < 30; i++) {
+      const q = makeQuestion(cfg, {})
+      expect(q.type).toBe('choice')
+      const wrong = q.options.filter((o) => o !== q.seq[0].char)
+      expect(wrong.length).toBe(3)
+      for (const w of wrong) {
+        const k = ALL_KANA.find((x) => x.char === w && x.script === q.seq[0].script)!
+        expect(k.romaji.some((r) => q.seq[0].romaji.includes(r))).toBe(false)
+      }
+    }
+  })
+
+  it('arah tulis gabungan: kepingan memuat semua huruf jawaban, plus pengecoh', () => {
+    const cfg = config({ direction: 'write', mode: 'combined', length: 5 })
+    for (let i = 0; i < 20; i++) {
+      const q = makeQuestion(cfg, {})
+      expect(q.type).toBe('tiles')
+      const bank = [...q.options]
+      for (const k of q.seq) {
+        const at = bank.indexOf(k.char)
+        expect(at).toBeGreaterThanOrEqual(0)
+        bank.splice(at, 1)
+      }
+      expect(bank.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('arah tulis dengan keyboard: tetap jenis ketik', () => {
+    const cfg = config({ direction: 'write', input: 'keyboard', mode: 'combined', length: 4 })
+    expect(makeQuestion(cfg, {}).type).toBe('type')
+  })
+
+  it('gabungan tidak mengulang rangkaian yang sama dalam satu sesi (kecuali pengulangan sengaja)', () => {
+    const cfg = config({ mode: 'combined', length: 4, words: true, pool: GROUPS.hiragana.slice(0, 6).flatMap((g) => g.kana) })
+    const keys = Array.from({ length: 40 }, () => makeQuestion(cfg, {}).seq.map((k) => k.id).join())
+    expect(new Set(keys).size).toBe(keys.length)
+  })
+})
