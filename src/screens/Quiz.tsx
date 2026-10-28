@@ -445,7 +445,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         </div>
 
         {q.type === 'tiles' ? (
-          <TileBank slots={q.seq.length} tiles={q.options} picks={tilePicks} onChange={setTilePicks} disabled={status !== 'idle'} />
+          <TileBank answer={q.seq.map((k) => k.char)} words={q.words} tiles={q.options} picks={tilePicks} onChange={setTilePicks} disabled={status !== 'idle'} />
         ) : q.type === 'type' ? (
           <AnswerBoxes seq={q.seq} values={parts} onChange={setParts} disabled={status !== 'idle'} compact={compact} write={write} words={q.words} />
         ) : (

@@ -1,6 +1,8 @@
 interface Props {
-  /** jumlah huruf yang harus disusun */
-  slots: number
+  /** huruf jawaban yang benar, berurutan (satu slot per huruf) */
+  answer: string[]
+  /** mode kata nyata: pembagian kata; arti muncul di bawah kata yang sudah benar */
+  words?: { meaning?: string; len: number }[]
   /** semua kepingan yang tersedia */
   tiles: string[]
   /** indeks kepingan yang sudah dipilih, berurutan */
@@ -11,7 +13,9 @@ interface Props {
 }
 
 /** susun jawaban dari kepingan huruf Jepang, ala Duolingo: ketuk kepingan untuk memasang, ketuk lagi untuk melepas */
-export default function TileBank({ slots, tiles, picks, onChange, disabled, compact }: Props) {
+export default function TileBank({ answer, words, tiles, picks, onChange, disabled, compact }: Props) {
+  const slots = answer.length
+  const groups = words ?? [{ len: slots }]
   const add = (i: number) => {
     if (disabled || picks.includes(i) || picks.length >= slots) return
     onChange([...picks, i])
@@ -25,24 +29,48 @@ export default function TileBank({ slots, tiles, picks, onChange, disabled, comp
   return (
     <div className={`flex w-full max-w-md flex-col items-stretch ${compact ? 'mt-3 gap-3' : 'mt-8 gap-5'}`}>
       <div
-        className="flex min-h-16 flex-wrap items-center justify-start gap-2 border-b-2 border-[#3a2a20] pb-2 sm:justify-center"
+        className="flex min-h-16 flex-wrap items-start justify-start gap-x-4 gap-y-2 border-b-2 border-[#3a2a20] pb-2 sm:justify-center"
         aria-label="Jawabanmu"
         aria-live="polite"
       >
-        {Array.from({ length: slots }, (_, pos) => {
-          const i = picks[pos]
-          return i === undefined ? (
-            <span key={pos} className={`${size} rounded-lg border-2 border-dashed border-[#3a2a20] bg-[#120c09]/60 px-3`} aria-hidden />
-          ) : (
-            <button
-              key={pos}
-              onClick={() => remove(pos)}
-              disabled={disabled}
-              className={`font-jp ${size} cursor-pointer rounded-lg border-2 border-[#6b4a32] bg-[#2a1d14] px-3 font-bold text-bone transition hover:border-sharin disabled:cursor-default`}
-              aria-label={`Lepas ${tiles[i]}`}
-            >
-              {tiles[i]}
-            </button>
+        {groups.map((g, gi) => {
+          const from = groups.slice(0, gi).reduce((a, x) => a + x.len, 0)
+          const positions = Array.from({ length: g.len }, (_, j) => from + j)
+          // kata nyata yang sudah tersusun benar: sorot dan tampilkan artinya
+          const done = !!g.meaning && positions.every((pos) => picks[pos] !== undefined && tiles[picks[pos]] === answer[pos])
+          return (
+            <div key={gi} className="flex flex-col items-center">
+              <div
+                className="flex gap-2 rounded-[3px] px-1"
+                style={
+                  done
+                    ? { background: 'linear-gradient(transparent 55%, rgba(233, 180, 76, 0.5) 55%, rgba(233, 180, 76, 0.5) 92%, transparent 92%)' }
+                    : undefined
+                }
+              >
+                {positions.map((pos) => {
+                  const i = picks[pos]
+                  return i === undefined ? (
+                    <span key={pos} className={`${size} rounded-lg border-2 border-dashed border-[#3a2a20] bg-[#120c09]/60 px-3`} aria-hidden />
+                  ) : (
+                    <button
+                      key={pos}
+                      onClick={() => remove(pos)}
+                      disabled={disabled}
+                      className={`font-jp ${size} cursor-pointer rounded-lg border-2 border-[#6b4a32] bg-[#2a1d14] px-3 font-bold text-bone transition hover:border-sharin disabled:cursor-default`}
+                      aria-label={`Lepas ${tiles[i]}`}
+                    >
+                      {tiles[i]}
+                    </button>
+                  )
+                })}
+              </div>
+              {g.meaning && (
+                <span className={`mt-1 px-1 text-xs font-semibold text-[#cdb88f] transition-opacity duration-300 ${done ? 'opacity-100' : 'opacity-0'}`}>
+                  {g.meaning}
+                </span>
+              )}
+            </div>
           )
         })}
       </div>
