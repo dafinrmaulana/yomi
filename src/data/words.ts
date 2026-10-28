@@ -1,6 +1,6 @@
 /**
- * Daftar kata untuk rangkaian "kata nyata": "tulisan:arti". Hanya memakai huruf yang ada di aplikasi
- * (tanpa っ kecil dan tanda panjang ー); kata yang tidak bisa diurai otomatis dilewati.
+ * Daftar kata untuk rangkaian "kata nyata": "tulisan:arti". Hanya memakai huruf yang dikenal aplikasi (termasuk
+ * っ/ッ dan ー, tanpa ィ/ェ kecil dan sejenisnya); kata yang tidak bisa diurai otomatis dilewati.
  */
 const HIRAGANA = `
 あう:bertemu あく:terbuka あせ:keringat あな:lubang あみ:jaring いか:cumi いけ:kolam いど:sumur いろ:warna
@@ -54,6 +54,9 @@ const HIRAGANA = `
 ぺこぺこ:lapar sekali ぽかぽか:hangat nyaman おばあさん:nenek おじいさん:kakek おおさか:Osaka
 こうこう:SMA きゃく:tamu しゃちょう:direktur しゅみ:hobi しゅじん:suami ちゅうい:perhatian
 にゅうがく:masuk sekolah みゃく:denyut nadi りゅう:naga じゅぎょう:pelajaran
+がっこう:sekolah ざっし:majalah きって:perangko きっぷ:tiket まっすぐ:lurus ちょっと:sedikit いっぱい:penuh
+ひゃっか:ensiklopedia ぴったり:pas sekali ずっと:selalu もっと:lebih きっと:pasti さっき:tadi にっき:buku harian
+せっけん:sabun ゆっくり:pelan-pelan びっくり:terkejut ほっかいどう:Hokkaido おっと:suami(ku) ざっか:barang kecil
 `
 
 const KATAKANA = `
@@ -61,6 +64,10 @@ const KATAKANA = `
 ラジオ:radio ペン:pen ドア:pintu テニス:tenis ゴルフ:golf バス:bus ミルク:susu アイス:es krim
 サラダ:salad メロン:melon レモン:lemon ワイン:anggur ピザ:pizza パン:roti ココア:kakao
 スマホ:ponsel pintar アニメ:anime
+ゲーム:gim コンピューター:komputer インターネット:internet チケット:tiket ショップ:toko ニュース:berita
+メール:surel コーヒー:kopi ケーキ:kue カレー:kari ビール:bir スーパー:supermarket タクシー:taksi ノート:buku catatan
+サッカー:sepak bola ベッド:tempat tidur コップ:gelas カップ:cangkir バッグ:tas ハンバーガー:hamburger
+スポーツ:olahraga プール:kolam renang ジュース:jus チーズ:keju ラーメン:ramen エレベーター:lift
 `
 
 export interface WordEntry {

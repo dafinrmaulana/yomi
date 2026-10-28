@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { ALL_KANA, GROUPS, type Kana } from './kana'
 import { QuestionGenerator } from './generator'
 import { checkKana, isChoiceAnswer, promptRomaji, starsFor, type QuizConfig } from './quiz'
+import { matchesSequence, romajiAt } from './romaji'
 
 const byChar = (chars: string): Kana[] => [...chars].map((c) => ALL_KANA.find((k) => k.char === c)!)
 
@@ -182,5 +183,32 @@ describe('QuestionGenerator: keadaan per instance', () => {
     expect(shownAgain()).toBe(true)
     gen.clearRetry(cfg, q)
     expect(shownAgain()).toBe(true)
+  })
+})
+
+describe('kata dengan huruf khusus di dalam soal', () => {
+  const pool = [...GROUPS.hiragana, ...GROUPS.katakana].flatMap((g) => g.kana)
+
+  it('jawaban dari bacaan utama selalu diterima, dan susunan huruf aslinya selalu benar', () => {
+    const cfg = config({ pool, mode: 'combined', length: 6, words: true })
+    const gen = new QuestionGenerator()
+    let withSpecial = 0
+    for (let i = 0; i < 400; i++) {
+      const q = gen.next(cfg, {})
+      if (q.seq.some((k) => k.special)) withSpecial++
+      const typed = q.seq.map((_, j) => romajiAt(q.seq, j)[0]).join('')
+      expect(matchesSequence(typed, q.seq), typed).toBe(true)
+      expect(checkKana(q.seq.map((k) => k.char).join(''), q.seq).ok).toBe(true)
+    }
+    expect(withSpecial).toBeGreaterThan(0)
+  })
+
+  it('kepingan arah tulis memuat huruf khusus yang diminta jawaban', () => {
+    const cfg = config({ pool, mode: 'combined', length: 6, words: true, direction: 'write' })
+    const gen = new QuestionGenerator()
+    for (let i = 0; i < 200; i++) {
+      const q = gen.next(cfg, {})
+      for (const k of q.seq) expect(q.options).toContain(k.char)
+    }
   })
 })

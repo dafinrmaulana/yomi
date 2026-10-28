@@ -1,7 +1,8 @@
 import { WORDS_HIRAGANA, WORDS_KATAKANA, type WordEntry } from '../data/words'
-import { ALL_KANA, type Kana } from './kana'
+import { ALL_KANA, SPECIAL_KANA, type Kana } from './kana'
 
 const BY_CHAR: Record<string, Kana> = Object.fromEntries(ALL_KANA.map((k) => [k.char, k]))
+const SPECIAL_IDS = new Set(SPECIAL_KANA.map((k) => k.id))
 const SMALL_YOON = new Set(['ゃ', 'ゅ', 'ょ', 'ャ', 'ュ', 'ョ'])
 
 export interface Word extends WordEntry {
@@ -16,7 +17,9 @@ export function parseKana(text: string): Kana[] | null {
   const out: Kana[] = []
   for (let i = 0; i < chars.length; i++) {
     const pair = chars[i + 1] && SMALL_YOON.has(chars[i + 1]) ? chars[i] + chars[i + 1] : null
-    const k = (pair && BY_CHAR[pair]) || BY_CHAR[chars[i]]
+    // ー mengikuti skrip huruf sebelumnya; っ/ッ punya skrip masing-masing
+    const special = SPECIAL_KANA.find((s) => s.char === chars[i] && (s.char !== 'ー' || s.script === out[out.length - 1]?.script))
+    const k = special ?? (pair && BY_CHAR[pair]) ?? BY_CHAR[chars[i]]
     if (!k) return null
     if (pair && BY_CHAR[pair]) i++
     out.push(k)
@@ -77,7 +80,8 @@ export function pickWords(
   uses: Map<string, number> = new Map(),
 ): { seq: Kana[]; words: Segment[] } | null {
   const ids = new Set(pool.map((k) => k.id))
-  const fit = WORDS.filter((w) => w.ids.every((id) => ids.has(id)))
+  // っ/ッ dan ー tidak ada di pilihan huruf; kata boleh memakainya selama huruf lainnya ada di pool
+  const fit = WORDS.filter((w) => w.ids.every((id) => ids.has(id) || SPECIAL_IDS.has(id)) && w.ids.some((id) => ids.has(id)))
   if (fit.length === 0) return null
 
   const weigh = (w: Word) => w.seq.reduce((a, k) => a + need(k, stats), 0) / w.seq.length

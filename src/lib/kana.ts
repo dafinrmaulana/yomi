@@ -7,6 +7,8 @@ export interface Kana {
   romaji: string[]
   script: Script
   group: string
+  /** huruf khusus yang bacaannya bergantung pada huruf di sekitarnya (hanya muncul di kata nyata) */
+  special?: 'sokuon' | 'choon'
 }
 
 export interface KanaGroup {
@@ -97,7 +99,19 @@ export const GROUPS: Record<Script, KanaGroup[]> = {
 
 export const ALL_KANA: Kana[] = [...GROUPS.hiragana, ...GROUPS.katakana].flatMap((g) => g.kana)
 
-export const KANA_BY_ID: Record<string, Kana> = Object.fromEntries(ALL_KANA.map((k) => [k.id, k]))
+/**
+ * っ/ッ (konsonan rangkap) dan ー (vokal panjang). Bukan bagian dari pilihan huruf, statistik per baris, atau soal
+ * acak, karena bacaannya mengikuti huruf lain; hanya dipakai di kata nyata. `romaji` di sini cuma label tampilan,
+ * bacaan sebenarnya dihitung di `romajiAt` (lib/romaji).
+ */
+export const SPECIAL_KANA: Kana[] = [
+  { id: 'hiragana:っ', char: 'っ', romaji: ['tsu kecil'], script: 'hiragana', group: 'special', special: 'sokuon' },
+  { id: 'katakana:ッ', char: 'ッ', romaji: ['tsu kecil'], script: 'katakana', group: 'special', special: 'sokuon' },
+  { id: 'hiragana:ー', char: 'ー', romaji: ['panjang'], script: 'hiragana', group: 'special', special: 'choon' },
+  { id: 'katakana:ー', char: 'ー', romaji: ['panjang'], script: 'katakana', group: 'special', special: 'choon' },
+]
+
+export const KANA_BY_ID: Record<string, Kana> = Object.fromEntries([...ALL_KANA, ...SPECIAL_KANA].map((k) => [k.id, k]))
 
 export const SCRIPT_LABEL: Record<Script, string> = { hiragana: 'Hiragana', katakana: 'Katakana' }
 

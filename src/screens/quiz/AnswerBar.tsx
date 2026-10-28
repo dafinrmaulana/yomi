@@ -1,7 +1,7 @@
 import AdviceCard from '../../components/AdviceCard'
 import type { QuizConfig } from '../../lib/quiz'
 import { promptRomaji } from '../../lib/quiz'
-import { display } from '../../lib/romaji'
+import { display, romajiAt } from '../../lib/romaji'
 import type { useQuizAdvice } from './useQuizAdvice'
 import type { QuizSession } from './useQuizSession'
 
@@ -52,7 +52,8 @@ function Feedback({ session }: { session: QuizSession }) {
       </>
     )
   }
-  const alt = q.seq.filter((k) => k.romaji.length > 1)
+  // bacaan alternatif per huruf (mis. shi/si), dihitung menurut huruf di sekitarnya
+  const alt = q.seq.map((_, i) => romajiAt(q.seq, i).filter((r) => r !== '-')).filter((r) => r.length > 1)
   return (
     <>
       <p className="text-xl font-extrabold text-sharin-glow">Belum tepat</p>
@@ -63,7 +64,7 @@ function Feedback({ session }: { session: QuizSession }) {
       ) : (
         <p className="truncate text-sm text-bone/80">
           Jawaban: <b>{display(q.seq)}</b>
-          {alt.length > 0 && <span className="text-mute"> ({alt.map((k) => k.romaji.join('/')).join(', ')})</span>}
+          {alt.length > 0 && <span className="text-mute"> ({alt.map((r) => r.join('/')).join(', ')})</span>}
         </p>
       )}
     </>

@@ -86,6 +86,7 @@ export function isChoiceAnswer(q: Question, opt: string, direction: Direction = 
  * yang sama (じ/ぢ = ji, ず/づ = zu), pakai ejaan alternatif supaya soal tidak ambigu (ぢ = di).
  */
 export function promptRomaji(k: Kana): string {
+  if (k.special) return k.romaji[0] // label tetap: “tsu kecil” atau “panjang”
   // huruf yang lebih dulu di daftar (じ, ず) tetap memakai bacaan utamanya
   const before = ALL_KANA.slice(0, ALL_KANA.indexOf(k))
   const taken = (r: string) => before.some((o) => o.script === k.script && o.romaji[0] === r)

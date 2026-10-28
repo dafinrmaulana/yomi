@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { Kana } from '../lib/kana'
+import { romajiAt } from '../lib/romaji'
 
 interface Props {
   seq: Kana[]
@@ -14,8 +15,8 @@ interface Props {
 }
 
 /** pindah otomatis bila isi kotak sudah pasti utuh (tidak ada romaji lain yang lebih panjang) */
-const complete = (k: Kana, v: string) =>
-  k.romaji.includes(v) && !k.romaji.some((r) => r !== v && r.startsWith(v))
+const complete = (readings: string[], v: string) =>
+  readings.includes(v) && !readings.some((r) => r !== v && r.startsWith(v))
 
 /** kursor selalu di ujung kanan isi kotak (setelah klik/fokus browser menaruhnya di tempat lain) */
 const toEnd = (el: HTMLInputElement) =>
@@ -39,10 +40,11 @@ export default function AnswerBoxes({ seq, values, onChange, disabled, compact, 
 
   const set = (i: number, raw: string, final = true) => {
     const k = seq[i]
-    const v = write ? raw.slice(0, k.char.length + 1) : raw.toLowerCase().replace(/[^a-z]/g, '').slice(0, 4)
+    const readings = romajiAt(seq, i)
+    const v = write ? raw.slice(0, k.char.length + 1) : raw.toLowerCase().replace(/[^a-z-]/g, '').slice(0, 4)
     onChange(seq.map((_, j) => (j === i ? v : (values[j] ?? ''))))
     if (!final || !v) return
-    const done = write ? v === k.char : complete(k, v) || v.length >= Math.max(...k.romaji.map((r) => r.length))
+    const done = write ? v === k.char : complete(readings, v) || v.length >= Math.max(...readings.map((r) => r.length))
     if (done) focus(i + 1)
   }
 
@@ -74,7 +76,7 @@ export default function AnswerBoxes({ seq, values, onChange, disabled, compact, 
             const text = seq.slice(from, from + w.len).map((_, i) => values[from + i] ?? '').join('')
             const complete = !!w.meaning && seq.slice(from, from + w.len).every((k, i) => {
               const v = (values[from + i] ?? '').toLowerCase()
-              return write ? v === k.char : k.romaji.includes(v)
+              return write ? v === k.char : romajiAt(seq, from + i).includes(v)
             })
             return (
               <div key={wi} className="flex flex-col items-center">

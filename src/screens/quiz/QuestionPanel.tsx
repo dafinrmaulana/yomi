@@ -16,6 +16,22 @@ function instruction(config: QuizConfig, q: QuizSession['q'], write: boolean) {
   return config.mode === 'combined' ? 'Bacakan rangkaian huruf ini' : 'Ketik bacaan huruf ini'
 }
 
+/** penjelasan singkat bila rangkaian memuat っ/ッ atau ー, supaya jelas cara menjawabnya */
+function specialHint(q: QuizSession['q'], write: boolean): string | null {
+  const sokuon = q.seq.some((k) => k.special === 'sokuon')
+  const choon = q.seq.some((k) => k.special === 'choon')
+  if (!sokuon && !choon) return null
+  if (write) {
+    return [sokuon && '“tsu kecil” = っ/ッ', choon && '“panjang” = ー'].filter(Boolean).join(' · ')
+  }
+  return [
+    sokuon && 'っ/ッ: ketik huruf konsonan berikutnya (kitte → ki · t · te)',
+    choon && 'ー: ketik vokal yang dipanjangkan (ge · e · mu), atau “-”',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 interface Props {
   config: QuizConfig
   session: QuizSession
@@ -55,6 +71,10 @@ export default function QuestionPanel({ config, session, compact, tiny }: Props)
           </span>
         )}
       </div>
+
+      {specialHint(q, write) && (
+        <p className={`mt-3 max-w-md px-4 text-center text-xs text-[#b9a782] ${tiny ? 'hidden' : ''}`}>{specialHint(q, write)}</p>
+      )}
 
       {q.type === 'tiles' ? (
         <TileBank

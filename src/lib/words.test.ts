@@ -24,6 +24,22 @@ describe('parseKana', () => {
   })
 })
 
+describe('huruf khusus っ/ッ dan ー', () => {
+  it('diurai sebagai huruf khusus, ー mengikuti skrip huruf sebelumnya', () => {
+    const k = parseKana('きって')!
+    expect(k.map((x) => x.char)).toEqual(['き', 'っ', 'て'])
+    expect(k[1].special).toBe('sokuon')
+    expect(parseKana('ゲーム')![1]).toMatchObject({ special: 'choon', script: 'katakana' })
+    expect(parseKana('らーめん')![1]).toMatchObject({ special: 'choon', script: 'hiragana' })
+  })
+
+  it('kata dengan huruf khusus dipakai selama huruf lainnya ada di pool', () => {
+    const pool = ['き', 'て', 'か'].map((c) => ALL_KANA.find((k) => k.char === c)!)
+    const texts = WORDS.filter((w) => w.ids.every((id) => pool.some((k) => k.id === id) || id.includes('っ'))).map((w) => w.text)
+    expect(texts).toContain('きって')
+  })
+})
+
 describe('pickWords', () => {
   const pool = GROUPS.hiragana.slice(0, 10).flatMap((g) => g.kana)
   const filler = (n: number) => Array.from({ length: n }, () => pool[0])
@@ -43,7 +59,7 @@ describe('pickWords', () => {
       const r = pickWords(pool, {}, 6, () => [])!
       let from = 0
       for (const w of r.words) {
-        if (w.meaning) for (const k of r.seq.slice(from, from + w.len)) expect(ids.has(k.id)).toBe(true)
+        if (w.meaning) for (const k of r.seq.slice(from, from + w.len)) expect(k.special || ids.has(k.id)).toBeTruthy()
         from += w.len
       }
     }
