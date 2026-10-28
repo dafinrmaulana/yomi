@@ -232,7 +232,7 @@ export class QuestionGenerator {
       this.wordUses.set(cfg, uses)
       const make = () => {
         if (cfg.words && Math.random() < WORD_SHARE) {
-          const w = pickWords([...cfg.pool, ...cfg.review], stats, len, (n) => Array.from({ length: n }, pickOne), avoidKey, uses)
+          const w = pickWords([...cfg.pool, ...cfg.review], stats, len, (n) => Array.from({ length: n }, pickOne), avoidKey, uses, cfg.special)
           if (w) return { seq: w.seq, words: w.words }
         }
         return { seq: Array.from({ length: len }, pickOne), words: undefined }

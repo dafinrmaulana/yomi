@@ -4,7 +4,7 @@ import { ActivityChart, GroupChart, LetterHistory, SpeedChart } from '../compone
 import { Modal } from '../components/Modal'
 import Page from '../components/Page'
 import { useApp } from '../lib/app-context'
-import { GROUPS, KANA_BY_ID, SCRIPT_LABEL, type Script } from '../lib/kana'
+import { GROUPS, KANA_BY_ID, SCRIPT_LABEL, SPECIAL_KANA, type Kana, type Script } from '../lib/kana'
 import { BADGES, RANKS, rankFor } from '../lib/rank'
 
 function Tile({ value, label, tone = '' }: { value: string | number; label: string; tone?: string }) {
@@ -25,6 +25,44 @@ function Section({ title, children, aside }: { title: string; children: React.Re
       </div>
       {children}
     </section>
+  )
+}
+
+/** petak penguasaan huruf: warna menurut akurasi, ketuk untuk melihat riwayat */
+function MasteryGrid({
+  kana,
+  stats,
+  speed,
+  onPick,
+}: {
+  kana: Kana[]
+  stats: Record<string, { r: number; w: number }>
+  speed: Record<string, { n: number; ms: number }>
+  onPick: (id: string) => void
+}) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(54px,1fr))] gap-2">
+      {kana.map((k) => {
+        const st = stats[k.id]
+        const n = st ? st.r + st.w : 0
+        const a = n ? st!.r / n : null
+        const tone =
+          a === null ? 'border-[#3a2a20] bg-[#1a120d] text-[#6f604b]' : a >= 0.9 ? 'border-ok/60 bg-ok/20' : a >= 0.7 ? 'border-gold/60 bg-gold/20' : 'border-sharin/70 bg-sharin/25'
+        const sp = speed[k.id]
+        const sec = sp ? ` · rata-rata ${(sp.ms / sp.n / 1000).toFixed(1)} dtk` : ''
+        return (
+          <button
+            key={k.id}
+            onClick={() => onPick(k.id)}
+            aria-label={`Riwayat ${k.char}`}
+            title={a === null ? `${k.char} (${k.romaji[0]}): belum dilatih` : `${k.char} (${k.romaji[0]}): ${Math.round(a * 100)}% benar dari ${n} jawaban${sec}`}
+            className={`font-jp grid aspect-square cursor-pointer place-items-center rounded-lg border text-xl font-bold transition hover:scale-105 hover:brightness-125 ${tone}`}
+          >
+            {k.char}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -101,28 +139,9 @@ export default function Statistik() {
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(54px,1fr))] gap-2">
-          {GROUPS[script].flatMap((g) => g.kana).map((k) => {
-            const st = progress.stats[k.id]
-            const n = st ? st.r + st.w : 0
-            const a = n ? st!.r / n : null
-            const tone =
-              a === null ? 'border-[#3a2a20] bg-[#1a120d] text-[#6f604b]' : a >= 0.9 ? 'border-ok/60 bg-ok/20' : a >= 0.7 ? 'border-gold/60 bg-gold/20' : 'border-sharin/70 bg-sharin/25'
-            const sp = progress.speed[k.id]
-            const sec = sp ? ` · rata-rata ${(sp.ms / sp.n / 1000).toFixed(1)} dtk` : ''
-            return (
-              <button
-                key={k.id}
-                onClick={() => setLetter(k.id)}
-                aria-label={`Riwayat ${k.char}`}
-                title={a === null ? `${k.char} (${k.romaji[0]}): belum dilatih` : `${k.char} (${k.romaji[0]}): ${Math.round(a * 100)}% benar dari ${n} jawaban${sec}`}
-                className={`font-jp grid aspect-square cursor-pointer place-items-center rounded-lg border text-xl font-bold transition hover:scale-105 hover:brightness-125 ${tone}`}
-              >
-                {k.char}
-              </button>
-            )
-          })}
-        </div>
+        <MasteryGrid kana={GROUPS[script].flatMap((g) => g.kana)} stats={progress.stats} speed={progress.speed} onPick={setLetter} />
+        <p className="mb-2 mt-5 text-xs font-bold uppercase tracking-widest text-[#b9a782]">Huruf khusus</p>
+        <MasteryGrid kana={SPECIAL_KANA.filter((k) => k.script === script)} stats={progress.stats} speed={progress.speed} onPick={setLetter} />
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#b9a782]">
           <span><i className="mr-1.5 inline-block size-3 rounded-sm bg-ok/50 align-middle" />90%+ kuat</span>
           <span><i className="mr-1.5 inline-block size-3 rounded-sm bg-gold/50 align-middle" />70–89% cukup</span>

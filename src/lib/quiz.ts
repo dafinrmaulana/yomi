@@ -22,6 +22,8 @@ export interface QuizConfig {
   hearts: boolean
   /** rangkaian disusun dari kata nyata bila pool memungkinkan */
   words?: boolean
+  /** id huruf khusus (っ/ッ, ー) yang boleh dipakai di kata nyata; tidak pernah keluar sebagai soal sendiri */
+  special?: string[]
   nodeId?: string
 }
 

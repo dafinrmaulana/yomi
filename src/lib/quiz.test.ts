@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { ALL_KANA, GROUPS, type Kana } from './kana'
+import { ALL_KANA, GROUPS, SPECIAL_KANA, type Kana } from './kana'
 import { QuestionGenerator } from './generator'
 import { checkKana, isChoiceAnswer, promptRomaji, starsFor, type QuizConfig } from './quiz'
 import { matchesSequence, romajiAt } from './romaji'
@@ -190,7 +190,7 @@ describe('kata dengan huruf khusus di dalam soal', () => {
   const pool = [...GROUPS.hiragana, ...GROUPS.katakana].flatMap((g) => g.kana)
 
   it('jawaban dari bacaan utama selalu diterima, dan susunan huruf aslinya selalu benar', () => {
-    const cfg = config({ pool, mode: 'combined', length: 6, words: true })
+    const cfg = config({ pool, mode: 'combined', length: 6, words: true, special: SPECIAL_KANA.map((k) => k.id) })
     const gen = new QuestionGenerator()
     let withSpecial = 0
     for (let i = 0; i < 400; i++) {
@@ -203,8 +203,20 @@ describe('kata dengan huruf khusus di dalam soal', () => {
     expect(withSpecial).toBeGreaterThan(0)
   })
 
+  it('tanpa memilih huruf khusus, tidak ada soal yang memuatnya', () => {
+    const cfg = config({ pool, mode: 'combined', length: 6, words: true })
+    const gen = new QuestionGenerator()
+    for (let i = 0; i < 300; i++) expect(gen.next(cfg, {}).seq.some((k) => k.special)).toBe(false)
+  })
+
+  it('hanya huruf khusus yang dipilih yang dipakai (っ saja, tanpa ー)', () => {
+    const cfg = config({ pool, mode: 'combined', length: 6, words: true, special: ['hiragana:っ', 'katakana:ッ'] })
+    const gen = new QuestionGenerator()
+    for (let i = 0; i < 300; i++) for (const k of gen.next(cfg, {}).seq) expect(k.special).not.toBe('choon')
+  })
+
   it('kepingan arah tulis memuat huruf khusus yang diminta jawaban', () => {
-    const cfg = config({ pool, mode: 'combined', length: 6, words: true, direction: 'write' })
+    const cfg = config({ pool, mode: 'combined', length: 6, words: true, direction: 'write', special: SPECIAL_KANA.map((k) => k.id) })
     const gen = new QuestionGenerator()
     for (let i = 0; i < 200; i++) {
       const q = gen.next(cfg, {})

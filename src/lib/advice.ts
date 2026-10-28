@@ -1,3 +1,4 @@
+import { specialIds } from './free'
 import { GROUPS, KANA_BY_ID, groupTitle, type Kana, type Script } from './kana'
 import { FAST_NEEDED, MAX_LENGTH, MIN_ACC, MIN_ATTEMPTS, SAMPLE, STREAK_FOR_UP, TEST_MISSES } from './tuning'
 import { slowMs } from './quiz'
@@ -59,7 +60,8 @@ export function applyAction(s: FreeSettings, a: AdviceAction): FreeSettings {
   if (a.kind === 'length') return { ...s, mode: 'combined', length: a.value }
   if (a.kind === 'mode') return { ...s, mode: a.value }
   if (a.kind === 'finish') return s
-  return { ...s, selected: a.replace ? a.ids : [...new Set([...s.selected, ...a.ids])] }
+  // huruf khusus pilihan pengguna dipertahankan walau daftar huruf diganti
+  return { ...s, selected: a.replace ? [...a.ids, ...specialIds(s.selected)] : [...new Set([...s.selected, ...a.ids])] }
 }
 
 interface Rated {

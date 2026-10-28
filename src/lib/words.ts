@@ -42,6 +42,9 @@ function build(list: WordEntry[]): Word[] {
 
 export const WORDS: Word[] = [...build(WORDS_HIRAGANA), ...build(WORDS_KATAKANA)]
 
+/** pengali peluang untuk kata yang memuat huruf khusus pilihan pengguna */
+const SPECIAL_BOOST = 3
+
 type Stats = Record<string, { r: number; w: number }>
 
 /** seberapa butuh latihan sebuah huruf (belum dilatih atau sering salah = tinggi) */
@@ -78,13 +81,16 @@ export function pickWords(
   filler: (n: number) => Kana[],
   avoid?: string,
   uses: Map<string, number> = new Map(),
+  special: string[] = [],
 ): { seq: Kana[]; words: Segment[] } | null {
   const ids = new Set(pool.map((k) => k.id))
-  // っ/ッ dan ー tidak ada di pilihan huruf; kata boleh memakainya selama huruf lainnya ada di pool
-  const fit = WORDS.filter((w) => w.ids.every((id) => ids.has(id) || SPECIAL_IDS.has(id)) && w.ids.some((id) => ids.has(id)))
+  // huruf khusus (っ/ッ, ー) hanya dipakai bila dipilih; huruf lainnya harus ada di pool
+  const extra = new Set(special.filter((id) => SPECIAL_IDS.has(id)))
+  const fit = WORDS.filter((w) => w.ids.every((id) => ids.has(id) || extra.has(id)) && w.ids.some((id) => ids.has(id)))
   if (fit.length === 0) return null
 
-  const weigh = (w: Word) => w.seq.reduce((a, k) => a + need(k, stats), 0) / w.seq.length
+  // kata berhuruf khusus yang dipilih lebih sering keluar supaya benar-benar terlatih
+  const weigh = (w: Word) => (w.seq.reduce((a, k) => a + need(k, stats), 0) / w.seq.length) * (w.seq.some((k) => k.special) ? SPECIAL_BOOST : 1)
   const choose = (cands: Word[]) => {
     let roll = Math.random() * cands.reduce((a, w) => a + weigh(w), 0)
     for (const w of cands) {

@@ -22,6 +22,12 @@ describe('freeConfig', () => {
     expect(freeConfig({ ...base, direction: 'write', input: 'keyboard' })).toMatchObject({ direction: 'write', input: 'keyboard' })
   })
 
+  it('huruf khusus tidak masuk pool soal, tapi diteruskan terpisah', () => {
+    const c = freeConfig({ ...base, selected: [...vowels, 'hiragana:っ'] })
+    expect(c.pool.some((k) => k.special)).toBe(false)
+    expect(c.special).toEqual(['hiragana:っ'])
+  })
+
   it('huruf tak dikenal diabaikan', () => {
     expect(selectedKana({ ...base, selected: ['xxx', vowels[0]] })).toHaveLength(1)
   })

@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import Petals from '../components/Petals'
+import { specialIds } from '../lib/free'
 import type { AnswerMode, Direction, FreeSettings, WriteInput } from '../lib/storage'
 import Choice from './setup/Choice'
 import LetterPicker from './setup/LetterPicker'
@@ -25,7 +26,9 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
     { v: 'tiles', title: 'Pilih huruf', desc: 'Susun jawaban dari kepingan huruf Jepang, tanpa keyboard Jepang. Cocok untuk HP.' },
     { v: 'keyboard', title: 'Keyboard', desc: 'Ketik huruf Jepangnya langsung, misalnya “し”. Butuh keyboard Jepang (IME).' },
   ]
-  const count = settings.selected.length
+  // huruf khusus tidak bisa jadi soal sendiri, jadi tidak dihitung sebagai bahan latihan
+  const extra = specialIds(settings.selected).length
+  const count = settings.selected.length - extra
 
   return (
     <div className="desk relative min-h-dvh">
@@ -152,7 +155,7 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[#3a2a20] bg-[#0f0a07] px-4 py-4">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
           <p className="text-sm text-[#cdb88f]">
-            <b className="text-lg text-bone">{count}</b> huruf dipilih
+            <b className="text-lg text-bone">{count}</b> huruf dipilih{extra > 0 && ` + ${extra} huruf khusus`}
           </p>
           <button className="btn btn-red" disabled={count === 0} onClick={onStart}>
             Mulai latihan

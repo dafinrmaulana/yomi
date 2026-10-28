@@ -1,8 +1,11 @@
-import { GROUPS } from './kana'
+import { GROUPS, KANA_BY_ID } from './kana'
 import type { QuizConfig } from './quiz'
 import type { FreeSettings, QuizMode } from './storage'
 
-/** huruf-huruf yang dipilih di pengaturan Latihan Bebas (urutan mengikuti daftar huruf) */
+/** id huruf khusus (っ/ッ, ー) di antara pilihan */
+export const specialIds = (ids: string[]) => ids.filter((id) => KANA_BY_ID[id]?.special)
+
+/** huruf biasa yang dipilih di pengaturan Latihan Bebas (urutan mengikuti daftar huruf); huruf khusus tidak termasuk */
 export function selectedKana(s: FreeSettings) {
   const ids = new Set(s.selected)
   return Object.values(GROUPS)
@@ -19,6 +22,7 @@ export function freeConfig(s: FreeSettings): QuizConfig {
     kind: 'free',
     title: 'Latihan Bebas',
     pool: selectedKana(s),
+    special: specialIds(s.selected),
     review: [],
     mode: s.mode,
     length: s.length,
