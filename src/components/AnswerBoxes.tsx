@@ -26,6 +26,17 @@ const toEnd = (el: HTMLInputElement) =>
 const atEdge = (el: HTMLInputElement, edge: 'start' | 'end') =>
   el.selectionStart === el.selectionEnd && el.selectionStart === (edge === 'start' ? 0 : el.value.length)
 
+const STABILO: React.CSSProperties = {
+  background: 'linear-gradient(transparent 45%, rgba(233, 180, 76, 0.5) 45%, rgba(233, 180, 76, 0.5) 92%, transparent 92%)',
+}
+
+const BOUTEN: React.CSSProperties = {
+  textEmphasis: 'filled sesame #e9b44c',
+  WebkitTextEmphasis: 'filled sesame #e9b44c',
+  textEmphasisPosition: 'over right',
+  WebkitTextEmphasisPosition: 'over right',
+}
+
 /** satu kotak per huruf (seperti kode OTP), dengan pratinjau gabungan jawaban di atasnya */
 export default function AnswerBoxes({ seq, values, onChange, disabled, compact, write, words }: Props) {
   const refs = useRef<(HTMLInputElement | null)[]>([])
@@ -68,7 +79,7 @@ export default function AnswerBoxes({ seq, values, onChange, disabled, compact, 
   const joined = seq.map((_, i) => values[i] ?? '').join('')
 
   return (
-    <div className={`flex w-fit max-w-[min(100%,28rem)] flex-col items-start ${compact ? 'mt-3 gap-2' : 'mt-8 gap-3'}`}>
+    <div className={`flex w-fit max-w-[min(100%,28rem)] flex-col items-center self-center ${compact ? 'mt-3 gap-2' : 'mt-8 gap-3'}`}>
       {words ? (
         <div className="flex flex-wrap items-start justify-center gap-x-4 gap-y-2 self-center" aria-live="polite">
           {words.map((w, wi) => {
@@ -81,15 +92,12 @@ export default function AnswerBoxes({ seq, values, onChange, disabled, compact, 
             return (
               <div key={wi} className="flex flex-col items-center">
                 <span
-                  className={`rounded-[3px] px-1 font-bold tracking-[0.12em] transition-colors ${compact ? 'min-h-7 text-xl' : 'min-h-9 text-3xl'} ${write ? 'font-jp' : ''} ${
+                  className={`rounded-[3px] px-1 font-bold tracking-[0.12em] transition-colors ${compact ? 'min-h-7 text-xl' : 'min-h-9 text-3xl'} ${write ? 'font-jp pt-[0.5em]' : ''} ${
                     text ? 'text-bone' : 'text-mute/40'
                   }`}
-                  // sorot ala stabilo di separuh bawah kata, hanya setelah kata itu benar
-                  style={
-                    complete
-                      ? { background: 'linear-gradient(transparent 45%, rgba(233, 180, 76, 0.5) 45%, rgba(233, 180, 76, 0.5) 92%, transparent 92%)' }
-                      : undefined
-                  }
+                  // sorot hanya setelah kata itu benar: romaji pakai stabilo di separuh bawah,
+                  // huruf Jepang pakai 傍点 (titik wijen di atas tiap huruf), cara tradisional menandai huruf Jepang
+                  style={complete ? (write ? BOUTEN : STABILO) : undefined}
                 >
                   {text || '…'}
                 </span>
@@ -110,7 +118,7 @@ export default function AnswerBoxes({ seq, values, onChange, disabled, compact, 
           </p>
         )
       )}
-      <div className={`flex flex-wrap justify-start sm:justify-center ${seq.length > 10 ? 'gap-1.5' : 'gap-2'}`}>
+      <div className={`flex flex-wrap justify-center ${seq.length > 10 ? 'gap-1.5' : 'gap-2'}`}>
         {seq.map((_, i) => (
           <input
             key={`${key}-${i}`}
