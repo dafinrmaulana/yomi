@@ -8,8 +8,10 @@ const level = (xp: number) => (xp <= 0 ? 0 : xp < 30 ? 1 : xp < 80 ? 2 : 3)
 const TINT = ['bg-[#1a120d] text-[#8f7f66]', 'bg-sharin/25 text-bone', 'bg-sharin/50 text-white', 'bg-sharin text-white']
 
 export default function Calendar({ days, onPick }: { days: Record<string, DayStat>; onPick: (key: string) => void }) {
-  const now = new Date()
-  const [cursor, setCursor] = useState({ y: now.getFullYear(), m: now.getMonth() })
+  const [cursor, setCursor] = useState(() => {
+    const now = new Date()
+    return { y: now.getFullYear(), m: now.getMonth() }
+  })
   const today = dayKey()
 
   const first = new Date(cursor.y, cursor.m, 1)

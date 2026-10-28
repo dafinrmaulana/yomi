@@ -1,5 +1,6 @@
 import { ALL_KANA, type Kana } from './kana'
-import type { Mangekyo } from '../components/Sharingan'
+import type { Mangekyo } from './eye'
+import { SLOW_MS_READ, SLOW_MS_WRITE } from './tuning'
 import type { Segment } from './words'
 import type { AnswerMode, Direction, QuizMode, SpeedStat, WriteInput } from './storage'
 
@@ -53,7 +54,7 @@ export interface Question {
 }
 
 /** batas "cukup cepat" per huruf (ms); mengetik huruf Jepang lewat IME butuh waktu lebih lama */
-export const slowMs = (direction?: Direction) => (direction === 'write' ? 4000 : 2500)
+export const slowMs = (direction?: Direction) => (direction === 'write' ? SLOW_MS_WRITE : SLOW_MS_READ)
 
 const rand = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)]
 

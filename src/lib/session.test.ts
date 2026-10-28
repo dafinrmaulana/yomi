@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { STREAK_FOR_UP, TEST_MISSES } from './advice'
 import { ALL_KANA, GROUPS } from './kana'
+import { STREAK_FOR_UP, TEST_MISSES } from './tuning'
 import { SessionTracker, type AdviceSettings } from './session'
 
 const pool = GROUPS.hiragana[0].kana

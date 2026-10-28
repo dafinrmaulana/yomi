@@ -1,9 +1,9 @@
 import { ArrowLeft } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
-import HelpTip from '../components/HelpTip'
 import Petals from '../components/Petals'
-import { GROUPS, KIND_LABEL, SCRIPT_LABEL, groupTitle, type Kana, type Script } from '../lib/kana'
 import type { AnswerMode, Direction, FreeSettings, WriteInput } from '../lib/storage'
+import Choice from './setup/Choice'
+import LetterPicker from './setup/LetterPicker'
+import Step from './setup/Step'
 
 interface Props {
   settings: FreeSettings
@@ -12,119 +12,8 @@ interface Props {
   onBack: () => void
 }
 
-function Step({ n, title, hint, children }: { n: number; title: string; hint: string; children: ReactNode }) {
-  return (
-    <li className="relative pb-10 pl-14 last:pb-0">
-      <span className="absolute left-0 top-0 z-10 grid size-10 place-items-center rounded-full border-2 border-[#6a4b36] bg-[#2a1c14] text-lg font-extrabold text-[#f3e7cf]">
-        {n}
-      </span>
-      <h2 className="font-display text-xl font-extrabold leading-10">{title}</h2>
-      <p className="text-sm text-[#b9a782]">{hint}</p>
-      <div className="mt-4">{children}</div>
-    </li>
-  )
-}
-
-function Choice({
-  selected,
-  disabled,
-  title,
-  desc,
-  onClick,
-}: {
-  selected: boolean
-  disabled?: boolean
-  title: string
-  desc: string
-  onClick: () => void
-}) {
-  return (
-    <div className="relative">
-      <button
-        role="radio"
-        aria-checked={selected}
-        disabled={disabled}
-        onClick={onClick}
-        className={`flex w-full min-w-0 items-center gap-2 rounded-lg border-2 p-4 pr-11 text-left text-base font-bold transition ${
-          selected ? 'border-sharin bg-sharin/10' : `border-[#3a2a20] bg-[#120c09]/80 ${disabled ? '' : 'hover:border-[#6a4b36]'}`
-        } ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
-      >
-        <span
-          className={`grid size-5 shrink-0 place-items-center rounded-full border-2 ${
-            selected ? 'border-sharin bg-sharin' : 'border-[#6a4b36]'
-          }`}
-        >
-          {selected && (
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="#fff" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 12.5l4.5 4.5L19 7.5" />
-            </svg>
-          )}
-        </span>
-        {title}
-      </button>
-      {/* tombol bantuan di luar tombol pilihan (tombol tidak boleh bersarang) */}
-      <HelpTip align="right" className="absolute right-3 top-1/2 -translate-y-1/2" label={`Tentang ${title}`}>
-        {desc}
-      </HelpTip>
-    </div>
-  )
-}
-
-const quiet =
-  'cursor-pointer rounded border border-[#4d3727] px-3 py-1.5 text-sm font-semibold text-[#b9a782] transition hover:border-[#8a6a4a] hover:bg-[#2a1c14] hover:text-[#ead9b6]'
-
-// jalan pintas: lebih menonjol dari tombol sekunder, tapi tetap di bawah tombol utama
-const preset =
-  'inline-flex cursor-pointer items-center gap-1.5 rounded border border-[#a8834f] bg-[#e9b44c]/10 px-3.5 py-2 text-sm font-bold text-[#f3dca6] transition hover:bg-[#e9b44c]/20 hover:border-[#d6a85f] active:translate-y-px'
-
-interface Card {
-  key: string
-  title: string
-  kana: Kana[]
-}
-
-/** satu kartu per baris; huruf gabungan dipecah per tiga (kya kyu kyo) supaya sama besar dengan kartu lain */
-function cardsFor(script: Script, kind: 'dasar' | 'dakuten' | 'yoon'): Card[] {
-  return GROUPS[script]
-    .filter((g) => g.kind === kind)
-    .flatMap((g): Card[] => {
-      if (kind !== 'yoon') return [{ key: g.id, title: groupTitle(g), kana: g.kana }]
-      const out: Card[] = []
-      for (let i = 0; i < g.kana.length; i += 3) {
-        const kana = g.kana.slice(i, i + 3)
-        out.push({ key: `${g.id}-${i}`, title: kana.map((k) => k.romaji[0].toUpperCase()).join(' · '), kana })
-      }
-      return out
-    })
-}
-
 export default function Setup({ settings, onChange, onStart, onBack }: Props) {
-  const [script, setScript] = useState<Script>('hiragana')
-  const selected = new Set(settings.selected)
   const set = (patch: Partial<FreeSettings>) => onChange({ ...settings, ...patch })
-  const setIds = (ids: Iterable<string>) => set({ selected: [...ids] })
-
-  const toggle = (id: string) => {
-    const next = new Set(selected)
-    if (!next.delete(id)) next.add(id)
-    setIds(next)
-  }
-  const toggleMany = (ids: string[]) => {
-    const next = new Set(selected)
-    const all = ids.every((i) => next.has(i))
-    ids.forEach((i) => (all ? next.delete(i) : next.add(i)))
-    setIds(next)
-  }
-  const idsOf = (s: Script, kinds?: string[]) =>
-    GROUPS[s].filter((g) => !kinds || kinds.includes(g.kind)).flatMap((g) => g.kana.map((k) => k.id))
-
-  const presets: { label: string; ids: () => string[] }[] = [
-    { label: 'Vokal (A I U E O)', ids: () => GROUPS[script][0].kana.map((k) => k.id) },
-    { label: 'Semua dasar', ids: () => idsOf(script, ['dasar']) },
-    { label: 'Dasar + Dakuten', ids: () => idsOf(script, ['dasar', 'dakuten']) },
-    { label: 'Semua huruf', ids: () => idsOf(script) },
-  ]
-
   const combined = settings.mode === 'combined'
   const write = (settings.direction ?? 'read') === 'write'
   const answers: { v: AnswerMode; title: string; desc: string }[] = [
@@ -254,89 +143,7 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
             </Step>
 
             <Step n={4} title="Pilih huruf yang diuji" hint="Ketuk kepingan untuk memilih. Bisa campur hiragana dan katakana.">
-              <div className="tabs max-w-md" role="tablist" aria-label="Pilih skrip">
-                {(['hiragana', 'katakana'] as Script[]).map((s) => {
-                  const n = GROUPS[s].flatMap((g) => g.kana).filter((k) => selected.has(k.id)).length
-                  return (
-                    <button key={s} role="tab" aria-selected={script === s} onClick={() => setScript(s)} className="tab">
-                      {SCRIPT_LABEL[s]}
-                      {n > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#f3e7cf] px-1.5 text-xs font-extrabold leading-none text-[#1b1410] tabular-nums">{n}</span>}
-                    </button>
-                  )
-                })}
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {presets.map((p) => (
-                  <button key={p.label} onClick={() => setIds(new Set([...selected, ...p.ids()]))} className={preset}>
-                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                    {p.label}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setIds([...selected].filter((id) => !id.startsWith(script)))}
-                  className={`${quiet} !border-dashed`}
-                >
-                  Kosongkan {SCRIPT_LABEL[script]}
-                </button>
-              </div>
-
-              <div className="mt-6 space-y-8">
-                {(['dasar', 'dakuten', 'yoon'] as const).map((kind) => (
-                  <section key={kind}>
-                    <h3 className="font-display mb-3 text-sm font-extrabold uppercase tracking-[0.18em] text-[#cdb88f]">
-                      {KIND_LABEL[kind]}
-                    </h3>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {cardsFor(script, kind).map((g) => {
-                          const ids = g.kana.map((k) => k.id)
-                          const all = ids.every((i) => selected.has(i))
-                          return (
-                            <div key={g.key} className="rounded-lg border border-[#3a2a20] bg-[#120c09]/80 p-3">
-                              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                                <h4 className="min-w-0 text-sm font-bold leading-tight">{g.title}</h4>
-                                <button
-                                  onClick={() => toggleMany(ids)}
-                                  aria-pressed={all}
-                                  className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded border px-2.5 py-1 text-xs font-semibold transition ${
-                                    all
-                                      ? 'border-sharin/50 bg-sharin/15 text-sharin-glow hover:bg-sharin/25'
-                                      : 'border-[#4d3727] text-[#b9a782] hover:border-[#8a6a4a] hover:bg-[#2a1c14] hover:text-[#ead9b6]'
-                                  }`}
-                                >
-                                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                                    {all ? <path d="M5 12.5l4.5 4.5L19 7.5" /> : <path d="M12 5v14M5 12h14" />}
-                                  </svg>
-                                  {all ? 'Lepas semua' : 'Pilih semua'}
-                                </button>
-                              </div>
-                              <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5">
-                                {g.kana.map((k) => {
-                                  const on = selected.has(k.id)
-                                  return (
-                                    <div key={k.id} className="koma-wrap">
-                                      <button
-                                        onClick={() => toggle(k.id)}
-                                        aria-pressed={on}
-                                        aria-label={`${k.char} ${k.romaji[0]}`}
-                                        className={`koma ${on ? 'on' : ''}`}
-                                      >
-                                        <span className={`kana-char font-jp font-bold leading-none ${k.char.length > 1 ? 'kana-wide' : ''}`}>{k.char}</span>
-                                        <span className="rom mt-1.5">{k.romaji[0]}</span>
-                                      </button>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )
-                        })}
-                    </div>
-                  </section>
-                ))}
-              </div>
+              <LetterPicker selected={settings.selected} onChange={(selected) => set({ selected })} />
             </Step>
           </ol>
         </div>

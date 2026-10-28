@@ -1,11 +1,10 @@
 import { useState } from 'react'
-import { sharinganLevel } from '../../components/Sharingan'
 import type { Advice, AdviceAction } from '../../lib/advice'
+import { sharinganLevel } from '../../lib/eye'
+import { MILESTONE } from '../../lib/tuning'
 import type { SpeedStat } from '../../lib/storage'
 import type { QuizSession } from './useQuizSession'
 
-/** tiap kelipatan ini, sesi diajak selesai atau istirahat */
-const MILESTONE = 50
 
 interface Options {
   session: QuizSession

@@ -50,12 +50,17 @@ const HIRAGANA = `
 くだもの:buah ぞう:gajah へび:ular うさぎ:kelinci さかな:ikan ひよこ:anak ayam くじら:paus
 かもめ:camar いるか:lumba-lumba とんぼ:capung かえる:katak たぬき:tanuki あひる:bebek
 にじ:pelangi かみなり:petir あらし:badai ゆうひ:matahari terbenam つゆ:musim hujan
+ぎん:perak じごく:neraka だいじ:penting びじん:wanita cantik ぶんぽう:tata bahasa ぷりん:puding
+ぺこぺこ:lapar sekali ぽかぽか:hangat nyaman おばあさん:nenek おじいさん:kakek おおさか:Osaka
+こうこう:SMA きゃく:tamu しゃちょう:direktur しゅみ:hobi しゅじん:suami ちゅうい:perhatian
+にゅうがく:masuk sekolah みゃく:denyut nadi りゅう:naga じゅぎょう:pelajaran
 `
 
 const KATAKANA = `
 ピアノ:piano テレビ:televisi ナイフ:pisau カメラ:kamera バナナ:pisang トマト:tomat ホテル:hotel
 ラジオ:radio ペン:pen ドア:pintu テニス:tenis ゴルフ:golf バス:bus ミルク:susu アイス:es krim
 サラダ:salad メロン:melon レモン:lemon ワイン:anggur ピザ:pizza パン:roti ココア:kakao
+スマホ:ponsel pintar アニメ:anime
 `
 
 export interface WordEntry {

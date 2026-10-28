@@ -1,12 +1,9 @@
 import { useId } from 'react'
+import type { Mangekyo } from '../lib/eye'
 import itachi from '../assets/mangekyo/itachi.webp'
 import obito from '../assets/mangekyo/obito.webp'
 import sasuke from '../assets/mangekyo/sasuke.webp'
 import shisui from '../assets/mangekyo/shisui.webp'
-
-/** pemilik Mangekyō; berganti tiap permainan */
-export type Mangekyo = 'itachi' | 'shisui' | 'obito' | 'sasuke'
-export const MANGEKYO: Mangekyo[] = ['itachi', 'shisui', 'obito', 'sasuke']
 
 /** gambar Mangekyō per pemilik dan arah putarnya: -1 melawan arah jarum jam, 1 searah jarum jam */
 const MANGEKYO_ART: Record<Mangekyo, { src: string; dir: 1 | -1 }> = {
@@ -14,14 +11,6 @@ const MANGEKYO_ART: Record<Mangekyo, { src: string; dir: 1 | -1 }> = {
   shisui: { src: shisui, dir: -1 },
   obito: { src: obito, dir: -1 },
   sasuke: { src: sasuke, dir: 1 },
-}
-
-let lastMangekyo: Mangekyo | undefined
-/** pilih Mangekyō acak untuk permainan baru, selalu berbeda dari permainan sebelumnya */
-export function pickMangekyo(): Mangekyo {
-  const pool = MANGEKYO.filter((m) => m !== lastMangekyo)
-  lastMangekyo = pool[Math.floor(Math.random() * pool.length)]
-  return lastMangekyo
 }
 
 interface Props {
@@ -74,9 +63,6 @@ function RinneganArt({ tomoe, spin, gid }: { tomoe: boolean; spin: boolean; gid:
     </>
   )
 }
-
-/** combo 0–2: 1 tomoe, 3–5: 2, 6–9: 3, 10+: Mangekyō */
-export const sharinganLevel = (combo: number) => (combo >= 10 ? 4 : combo >= 6 ? 3 : combo >= 3 ? 2 : 1)
 
 /** gambar mata dalam koordinat satuan (radius 1, pusat 0,0); dipakai ikon dan bulan latar */
 export function SharinganArt({ level, spin = true, variant = 'itachi' }: { level: number; spin?: boolean; variant?: Mangekyo }) {

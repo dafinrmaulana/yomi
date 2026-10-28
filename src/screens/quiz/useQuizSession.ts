@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import type { Mangekyo } from '../../lib/eye'
 import { QuestionGenerator } from '../../lib/generator'
 import { KANA_BY_ID } from '../../lib/kana'
 import {
@@ -16,7 +17,6 @@ import { longestPrefix, matchesSequence } from '../../lib/romaji'
 import { scopeOf, SessionTracker, type AdviceSettings } from '../../lib/session'
 import { sfx } from '../../lib/sound'
 import type { SpeedStat } from '../../lib/storage'
-import type { Mangekyo } from '../../components/Sharingan'
 
 export type Status = 'idle' | 'ok' | 'bad'
 

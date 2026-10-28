@@ -1,5 +1,6 @@
 import Hearts from '../../components/Hearts'
-import Sharingan, { type Mangekyo } from '../../components/Sharingan'
+import Sharingan from '../../components/Sharingan'
+import type { Mangekyo } from '../../lib/eye'
 import type { QuizConfig } from '../../lib/quiz'
 
 interface Props {

@@ -1,5 +1,6 @@
 import { ALL_KANA, type Kana } from './kana'
 import { slowMs, type Question, type QuizConfig } from './quiz'
+import { MAX_RETRIES, SEEN_LIMIT, WORD_SHARE } from './tuning'
 import type { SpeedStat } from './storage'
 import { pickWords, type Segment } from './words'
 
@@ -64,11 +65,7 @@ function buildDeck(pool: Kana[], stats: Stats, speed: Speed, limit: number, last
   return deck
 }
 
-/** porsi soal gabungan yang disusun dari kata nyata */
-const WORD_SHARE = 0.85
 
-const MAX_RETRIES = 2
-const SEEN_LIMIT = 500
 
 /** arah tulis tanpa keyboard: jawaban disusun dari kepingan */
 const wantsTiles = (cfg: QuizConfig) => cfg.direction === 'write' && cfg.input !== 'keyboard'

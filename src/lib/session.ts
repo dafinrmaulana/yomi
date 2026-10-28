@@ -1,7 +1,8 @@
-import { adviceFor, NEAR_UP, STREAK_FOR_UP, TEST_MISSES, testMisses, upProgress, type Advice, type SessionLog } from './advice'
+import { adviceFor, testMisses, upProgress, type Advice, type SessionLog } from './advice'
 import type { Kana } from './kana'
 import { slowMs } from './quiz'
-import { SPEED_WINDOW, type FreeSettings, type SpeedStat } from './storage'
+import type { FreeSettings, SpeedStat } from './storage'
+import { NEAR_UP, SPEED_WINDOW, STREAK_FOR_UP, TEST_MISSES } from './tuning'
 
 type Stats = Record<string, { r: number; w: number }>
 type Speed = Record<string, SpeedStat>

@@ -1,5 +1,6 @@
 import { useId } from 'react'
-import { SharinganArt, type Mangekyo } from './Sharingan'
+import type { Mangekyo } from '../lib/eye'
+import { SharinganArt } from './Sharingan'
 
 const Pine = ({ x, y, s = 1 }: { x: number; y: number; s?: number }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`} fill="#090508">

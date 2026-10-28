@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { applyAction, type AdviceAction } from './lib/advice'
 import { AppContext } from './lib/app-context'
-import { GROUPS } from './lib/kana'
+import { freeConfig, withMode } from './lib/free'
 import { lessonConfig, type PathNode } from './lib/path'
 import type { QuizConfig, QuizResult } from './lib/quiz'
 import { RouterProvider, useRouter } from './lib/router'
-import { useProgress, type FreeSettings } from './lib/storage'
+import { useProgress } from './lib/storage'
 import Home from './screens/Home'
 import Hub from './screens/Hub'
 import Quiz from './screens/Quiz'
@@ -40,34 +40,11 @@ function Routes() {
     navigate('/quiz', { replace })
   }
 
+  // ganti per huruf ↔ gabungan di Latihan Bebas: simpan pilihan dan mulai sesi baru
   const switchMode = (config: QuizConfig) => {
     const mode = config.mode === 'single' ? 'combined' : 'single'
     patch({ free: { ...progress.free, mode } })
-    startQuiz(
-      { ...config, mode, answer: mode === 'combined' ? 'type' : progress.free.answer },
-      true,
-    )
-  }
-
-  const freeConfig = (s: FreeSettings): QuizConfig => {
-    const ids = new Set(s.selected)
-    const pool = Object.values(GROUPS)
-      .flatMap((gs) => gs.flatMap((g) => g.kana))
-      .filter((k) => ids.has(k.id))
-    return {
-      kind: 'free',
-      title: 'Latihan Bebas',
-      pool,
-      review: [],
-      mode: s.mode,
-      length: s.length,
-      answer: s.mode === 'combined' ? 'type' : s.answer,
-      direction: s.direction ?? 'read',
-      input: s.input,
-      words: true,
-      total: null,
-      hearts: false,
-    }
+    startQuiz(withMode(progress.free, mode), true)
   }
 
   const startFree = () => startQuiz(freeConfig(progress.free))

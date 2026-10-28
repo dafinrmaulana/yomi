@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { adviceFor, applyAction, NEAR_UP, STREAK_FOR_UP, TEST_MISSES, testMisses, upProgress, type SessionLog } from './advice'
+import { adviceFor, applyAction, testMisses, upProgress, type SessionLog } from './advice'
 import { GROUPS } from './kana'
+import { NEAR_UP, STREAK_FOR_UP, TEST_MISSES } from './tuning'
 import type { FreeSettings } from './storage'
 
 const ids = GROUPS.hiragana[0].kana.map((k) => k.id)

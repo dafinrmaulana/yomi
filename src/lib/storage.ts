@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { GROUPS } from './kana'
+import { HISTORY_LIMIT, SPEED_WINDOW } from './tuning'
 
 export type QuizMode = 'single' | 'combined'
 export type AnswerMode = 'type' | 'choice' | 'mix'
@@ -38,7 +39,6 @@ export interface SpeedStat {
   recent?: number[]
 }
 
-export const SPEED_WINDOW = 3
 
 /** satu titik riwayat sebuah huruf: hasilnya dalam satu sesi latihan */
 export interface SessionPoint {
@@ -49,8 +49,6 @@ export interface SessionPoint {
   ms?: number
 }
 
-/** riwayat sesi yang disimpan per huruf */
-export const HISTORY_LIMIT = 30
 
 export interface Progress {
   xp: number

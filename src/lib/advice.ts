@@ -1,4 +1,5 @@
 import { GROUPS, KANA_BY_ID, groupTitle, type Kana, type Script } from './kana'
+import { FAST_NEEDED, MAX_LENGTH, MIN_ACC, MIN_ATTEMPTS, SAMPLE, STREAK_FOR_UP, TEST_MISSES } from './tuning'
 import { slowMs } from './quiz'
 import type { FreeSettings, QuizMode, SpeedStat } from './storage'
 
@@ -23,19 +24,7 @@ export interface Advice {
 /** catatan sesi berjalan per huruf (sejak pengaturan terakhir berubah): benar, salah, dan benar-cepat */
 export type SessionLog = Record<string, { r: number; w: number; fast: number }>
 
-const MAX_LENGTH = 20
-/** jumlah huruf terlemah yang diuji */
-const SAMPLE = 8
-/** minimal jawaban benar-cepat per huruf sampel di sesi berjalan */
-const FAST_NEEDED = 2
-/** salah yang masih ditoleransi dalam satu masa tes naik level; salah lagi sesudahnya mengulang tes dari awal */
-export const TEST_MISSES = 1
 export const testMisses = (test: SessionLog) => Object.values(test).reduce((a, l) => a + l.w, 0)
-/** saran naik level hanya muncul bila jawaban benar beruntun sebanyak ini, dihitung sejak pengaturan terakhir berubah */
-export const STREAK_FOR_UP = 10
-const MIN_ACC = 0.9
-/** tanpa sesi berjalan (Meja Latihan): minimal jawaban per huruf dari riwayat */
-const MIN_ATTEMPTS = 3
 
 /**
  * Seberapa dekat tes naik level (0–1): paling kecil dari porsi huruf yang sudah dijawab benar, porsi huruf sampel
@@ -65,8 +54,6 @@ export function upProgress(
   return Math.min(seen, fast, Math.min(run / STREAK_FOR_UP, 1))
 }
 
-/** tes dianggap "hampir" bila sudah sejauh ini */
-export const NEAR_UP = 0.7
 
 export function applyAction(s: FreeSettings, a: AdviceAction): FreeSettings {
   if (a.kind === 'length') return { ...s, mode: 'combined', length: a.value }

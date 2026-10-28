@@ -1,18 +1,16 @@
-import { useMemo } from 'react'
+import { useState } from 'react'
 
 /** kelopak sakura jatuh pelan sebagai latar */
 export default function Petals({ count = 14 }: { count?: number }) {
-  const petals = useMemo(
-    () =>
-      Array.from({ length: count }, (_, i) => ({
-        left: Math.random() * 100,
-        size: 8 + Math.random() * 10,
-        dur: 14 + Math.random() * 16,
-        delay: -Math.random() * 30,
-        drift: (Math.random() - 0.3) * 240,
-        hue: i % 3 === 0 ? '#d62839' : '#c9566f',
-      })),
-    [count],
+  const [petals] = useState(() =>
+    Array.from({ length: count }, (_, i) => ({
+      left: Math.random() * 100,
+      size: 8 + Math.random() * 10,
+      dur: 14 + Math.random() * 16,
+      delay: -Math.random() * 30,
+      drift: (Math.random() - 0.3) * 240,
+      hue: i % 3 === 0 ? '#d62839' : '#c9566f',
+    })),
   )
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
