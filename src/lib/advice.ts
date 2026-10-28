@@ -28,6 +28,9 @@ const MAX_LENGTH = 20
 const SAMPLE = 8
 /** minimal jawaban benar-cepat per huruf sampel di sesi berjalan */
 const FAST_NEEDED = 2
+/** salah yang masih ditoleransi dalam satu masa tes naik level; salah lagi sesudahnya mengulang tes dari awal */
+export const TEST_MISSES = 1
+export const testMisses = (test: SessionLog) => Object.values(test).reduce((a, l) => a + l.w, 0)
 const MIN_ACC = 0.9
 /** tanpa sesi berjalan (Meja Latihan): minimal jawaban per huruf dari riwayat */
 const MIN_ATTEMPTS = 3
@@ -58,8 +61,8 @@ function nextGroup(selected: Set<string>, firstScript: Script) {
 /**
  * Saran latihan. Yang diuji adalah sampel huruf terlemah (belum dilatih, sering salah, atau lambat),
  * bukan sembarang soal: kalau huruf tersulit sudah lancar, sisanya pasti ikut lancar.
- * - Naik level, di dalam game (`test`): SEMUA huruf terpilih sudah muncul dan dijawab benar di masa tes ini, tanpa
- *   satu pun salah (salah apa pun mengulang tes dari awal), dan tiap huruf sampel benar-cepat >= 2x.
+ * - Naik level, di dalam game (`test`): SEMUA huruf terpilih sudah muncul dan dijawab benar di masa tes ini, dengan
+ *   paling banyak TEST_MISSES salah (salah berikutnya mengulang tes dari awal), dan tiap huruf sampel benar-cepat >= 2x.
  *   Tanpa tes berjalan (Meja Latihan), dinilai dari riwayat: >= 3 jawaban, akurasi >= 90%, tidak lambat.
  * - Fokus: sebagian huruf masih sering salah atau lambat.
  */
@@ -90,7 +93,8 @@ export function adviceFor(
   const out: Advice[] = []
 
   const passed = test
-    ? rated.every((r) => (test[r.k.id]?.r ?? 0) >= 1 && test[r.k.id].w === 0) &&
+    ? rated.every((r) => (test[r.k.id]?.r ?? 0) >= 1) &&
+      testMisses(test) <= TEST_MISSES &&
       sample.every((r) => (test[r.k.id]?.fast ?? 0) >= FAST_NEEDED)
     : sample.every((r) => r.n >= MIN_ATTEMPTS && r.acc >= MIN_ACC && !r.slow)
 

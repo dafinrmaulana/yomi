@@ -6,7 +6,8 @@ import { ConfirmDialog } from '../components/Modal'
 import Petals from '../components/Petals'
 import Scenery from '../components/Scenery'
 import Sharingan, { sharinganLevel } from '../components/Sharingan'
-import { adviceFor, type Advice, type AdviceAction, type SessionLog } from '../lib/advice'
+import TileBank from '../components/TileBank'
+import { adviceFor, TEST_MISSES, testMisses, type Advice, type AdviceAction, type SessionLog } from '../lib/advice'
 import { KANA_BY_ID, SCRIPT_LABEL } from '../lib/kana'
 import {
   checkKana,
@@ -92,7 +93,9 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
   const [q, setQ] = useState<Question>(() => makeQuestion(config, stats, undefined, pastSpeed))
   const [qNo, setQNo] = useState(1)
   const [parts, setParts] = useState<string[]>([])
-  const answer = parts.join('')
+  // arah tulis tanpa keyboard: indeks kepingan yang sudah dipasang
+  const [tilePicks, setTilePicks] = useState<number[]>([])
+  const answer = q.type === 'tiles' ? tilePicks.map((i) => q.options[i]).join('') : parts.join('')
   const [picked, setPicked] = useState<string | null>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [praise, setPraise] = useState('')
@@ -157,8 +160,12 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
         } else l.w++
       }
     })
-    run.current = ok ? run.current + 1 : 0
-    if (!ok) test.current = {}
+    // satu salah ditoleransi per tes; salah berikutnya mengulang tes dan hitungan benar beruntun dari awal
+    if (ok) run.current++
+    else if (testMisses(test.current) > TEST_MISSES) {
+      test.current = {}
+      run.current = 0
+    }
 
     if (ok) {
       // waktu berpikir dibagi rata ke tiap huruf, tanpa batas atas
@@ -208,7 +215,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
   }
 
   const skip = () => {
-    submit(q.type === 'type' ? answer || '-' : '-')
+    submit(q.type === 'choice' ? '-' : answer || '-')
   }
 
   const next = () => {
@@ -219,6 +226,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
     setQ(makeQuestion(config, merged(), key, mergedSpeed()))
     setQNo((n) => n + 1)
     setParts([])
+    setTilePicks([])
     setPicked(null)
     setStatus('idle')
     setXpPop(null)
@@ -288,7 +296,9 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
     if (e.key === 'Enter') {
       e.preventDefault()
       if (status !== 'idle') next()
-      else if (q.type === 'type' && answer.trim()) submit(answer)
+      else if (q.type !== 'choice' && answer.trim()) submit(answer)
+    } else if (e.key === 'Backspace' && status === 'idle' && q.type === 'tiles') {
+      setTilePicks((p) => p.slice(0, -1))
     } else if (status === 'idle' && q.type === 'choice' && /^[1-4]$/.test(e.key)) {
       const opt = q.options[Number(e.key) - 1]
       if (opt) pick(opt)
@@ -399,7 +409,9 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
           {write
             ? q.type === 'choice'
               ? 'Pilih huruf yang benar'
-              : q.seq.length > 1
+              : q.type === 'tiles'
+                ? 'Susun huruf Jepangnya'
+                : q.seq.length > 1
                 ? 'Ketik rangkaian huruf Jepangnya'
                 : 'Ketik huruf Jepangnya'
             : q.type === 'choice'
@@ -432,7 +444,9 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
           )}
         </div>
 
-        {q.type === 'type' ? (
+        {q.type === 'tiles' ? (
+          <TileBank slots={q.seq.length} tiles={q.options} picks={tilePicks} onChange={setTilePicks} disabled={status !== 'idle'} />
+        ) : q.type === 'type' ? (
           <AnswerBoxes seq={q.seq} values={parts} onChange={setParts} disabled={status !== 'idle'} compact={compact} write={write} words={q.words} />
         ) : (
           <div className="mt-8 grid w-full max-w-md grid-cols-2 gap-3">
@@ -496,7 +510,7 @@ export default function Quiz({ config, stats, speed: pastSpeed, mute, onFinish, 
               <button className="btn btn-ghost" onClick={skip}>
                 Lewati
               </button>
-              {q.type === 'type' ? (
+              {q.type !== 'choice' ? (
                 <button className="btn btn-red" disabled={!answer.trim()} onClick={() => submit(answer)}>
                   Periksa
                 </button>

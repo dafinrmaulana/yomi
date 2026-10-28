@@ -1,6 +1,6 @@
 import { ALL_KANA, type Kana } from './kana'
 import { pickWords, type Segment } from './words'
-import type { AnswerMode, Direction, QuizMode, SpeedStat } from './storage'
+import type { AnswerMode, Direction, QuizMode, SpeedStat, WriteInput } from './storage'
 
 export interface QuizConfig {
   kind: 'path' | 'free' | 'review'
@@ -13,6 +13,8 @@ export interface QuizConfig {
   answer: AnswerMode
   /** arah soal; default 'read' */
   direction?: Direction
+  /** arah tulis: kepingan huruf (default) atau keyboard */
+  input?: WriteInput
   /** jumlah soal; null = tanpa henti */
   total: number | null
   hearts: boolean
@@ -39,9 +41,9 @@ export interface QuizResult {
 
 export interface Question {
   seq: Kana[]
-  /** type = ketik jawaban (romaji untuk arah baca, huruf Jepang untuk arah tulis) */
-  type: 'type' | 'choice'
-  /** romaji (arah baca) atau huruf Jepang (arah tulis) */
+  /** type = ketik jawaban (romaji untuk arah baca, huruf Jepang untuk arah tulis); tiles = susun dari kepingan (options) */
+  type: 'type' | 'choice' | 'tiles'
+  /** romaji (arah baca) atau huruf Jepang (arah tulis); untuk tiles: seluruh kepingan yang tersedia */
   options: string[]
   /** pembagian rangkaian jadi kata beserta artinya (hanya mode kata nyata) */
   words?: Segment[]
@@ -151,7 +153,7 @@ export function requeue(cfg: QuizConfig, k: Kana) {
 }
 
 /** porsi soal gabungan yang disusun dari kata nyata */
-const WORD_SHARE = 0.7
+const WORD_SHARE = 0.85
 
 /*
  * Soal gabungan tidak boleh sama dengan yang sudah keluar di sesi ini, kecuali memang sengaja diulang:
@@ -160,6 +162,7 @@ const WORD_SHARE = 0.7
  */
 const keyOf = (seq: Kana[]) => seq.map((k) => k.id).join()
 const seen = new WeakMap<QuizConfig, Set<string>>()
+const wordUses = new WeakMap<QuizConfig, Map<string, number>>()
 const retryQueue = new WeakMap<QuizConfig, { seq: Kana[]; words?: Segment[]; due: number }[]>()
 const retryTries = new WeakMap<QuizConfig, Map<string, number>>()
 const MAX_RETRIES = 2
@@ -186,6 +189,34 @@ export function clearRetry(cfg: QuizConfig, q: Question) {
   retryTries.get(cfg)?.delete(keyOf(q.seq))
 }
 
+/** arah tulis tanpa keyboard: jawaban disusun dari kepingan */
+const wantsTiles = (cfg: QuizConfig) => cfg.direction === 'write' && cfg.input !== 'keyboard'
+
+/** kepingan huruf Jepang: semua huruf jawaban ditambah beberapa pengecoh, diacak */
+function tileBank(cfg: QuizConfig, seq: Kana[]): string[] {
+  const answer = seq.map((k) => k.char)
+  const readings = new Set(seq.flatMap((k) => k.romaji))
+  const script = seq[0].script
+  const decoys = Math.max(2, Math.ceil(seq.length / 2))
+  const out: string[] = []
+  const sources = [shuffle([...cfg.pool, ...cfg.review]), shuffle(ALL_KANA)]
+  for (const src of sources) {
+    for (const k of src) {
+      if (out.length >= decoys) break
+      if (k.script !== script || answer.includes(k.char) || out.includes(k.char)) continue
+      if (k.romaji.some((r) => readings.has(r))) continue
+      out.push(k.char)
+    }
+  }
+  return shuffle([...answer, ...out])
+}
+
+/** rangkaian gabungan jadi soal: kepingan untuk arah tulis (kecuali pakai keyboard), ketik selain itu */
+function combinedQuestion(cfg: QuizConfig, seq: Kana[], words?: Segment[]): Question {
+  if (wantsTiles(cfg)) return { seq, type: 'tiles', options: tileBank(cfg, seq), words }
+  return { seq, type: 'type', options: [], words }
+}
+
 export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string, speed: Speed = {}): Question {
   const limit = slowMs(cfg.direction)
   const pickOne = (): Kana => {
@@ -208,7 +239,7 @@ export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string, s
       const i = queue.findIndex((r) => r.due <= 0 && keyOf(r.seq) !== avoidKey)
       if (i >= 0) {
         const [r] = queue.splice(i, 1)
-        return { seq: r.seq, type: 'type', options: [], words: r.words }
+        return combinedQuestion(cfg, r.seq, r.words)
       }
     }
 
@@ -216,9 +247,11 @@ export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string, s
     // yang jarang ada di kata tetap terlatih. Dicoba ulang bila sama dengan yang pernah keluar di sesi ini.
     const used = seen.get(cfg) ?? new Set<string>()
     seen.set(cfg, used)
+    const uses = wordUses.get(cfg) ?? new Map<string, number>()
+    wordUses.set(cfg, uses)
     const make = () => {
       if (cfg.words && Math.random() < WORD_SHARE) {
-        const w = pickWords([...cfg.pool, ...cfg.review], stats, len, (n) => Array.from({ length: n }, pickOne), avoidKey)
+        const w = pickWords([...cfg.pool, ...cfg.review], stats, len, (n) => Array.from({ length: n }, pickOne), avoidKey, uses)
         if (w) return { seq: w.seq, words: w.words }
       }
       return { seq: Array.from({ length: len }, pickOne), words: undefined }
@@ -228,7 +261,7 @@ export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string, s
     if (used.size >= SEEN_LIMIT) used.clear()
     used.add(keyOf(out.seq))
     ;({ seq, words } = out)
-    return { seq, type: 'type', options: [], words }
+    return combinedQuestion(cfg, seq, words)
   }
 
   seq = Array.from({ length: len }, pickOne)
@@ -238,8 +271,10 @@ export function makeQuestion(cfg: QuizConfig, stats: Stats, avoidKey?: string, s
   }
 
   const write = cfg.direction === 'write'
+  // arah tulis tanpa keyboard: per huruf selalu pilihan ganda
   const wantChoice =
-    cfg.mode === 'single' && (cfg.answer === 'choice' || (cfg.answer === 'mix' && Math.random() < 0.5))
+    cfg.mode === 'single' &&
+    (wantsTiles(cfg) || cfg.answer === 'choice' || (cfg.answer === 'mix' && Math.random() < 0.5))
   if (!wantChoice) return { seq, type: 'type', options: [] }
 
   const target = seq[0]

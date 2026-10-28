@@ -5,6 +5,8 @@ export type QuizMode = 'single' | 'combined'
 export type AnswerMode = 'type' | 'choice' | 'mix'
 /** read: huruf Jepang → romaji, write: romaji → huruf Jepang */
 export type Direction = 'read' | 'write'
+/** cara menjawab arah tulis: susun dari kepingan huruf (default) atau ketik dengan keyboard Jepang */
+export type WriteInput = 'tiles' | 'keyboard'
 
 export interface FreeSettings {
   selected: string[]
@@ -13,6 +15,8 @@ export interface FreeSettings {
   answer: AnswerMode
   /** kosong pada data lama = 'read' */
   direction?: Direction
+  /** hanya arah tulis; kosong = 'tiles' */
+  input?: WriteInput
 }
 
 export interface DayStat {

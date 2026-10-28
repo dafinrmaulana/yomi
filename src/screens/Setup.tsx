@@ -1,15 +1,11 @@
 import { ArrowLeft } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import AdviceCard from '../components/AdviceCard'
 import Petals from '../components/Petals'
-import { adviceFor, applyAction, type Advice } from '../lib/advice'
 import { GROUPS, KIND_LABEL, SCRIPT_LABEL, groupTitle, type Kana, type Script } from '../lib/kana'
-import type { AnswerMode, Direction, FreeSettings, SpeedStat } from '../lib/storage'
+import type { AnswerMode, Direction, FreeSettings, WriteInput } from '../lib/storage'
 
 interface Props {
   settings: FreeSettings
-  stats: Record<string, { r: number; w: number }>
-  speed: Record<string, SpeedStat>
   onChange: (s: FreeSettings) => void
   onStart: () => void
   onBack: () => void
@@ -98,7 +94,7 @@ function cardsFor(script: Script, kind: 'dasar' | 'dakuten' | 'yoon'): Card[] {
     })
 }
 
-export default function Setup({ settings, stats, speed, onChange, onStart, onBack }: Props) {
+export default function Setup({ settings, onChange, onStart, onBack }: Props) {
   const [script, setScript] = useState<Script>('hiragana')
   const selected = new Set(settings.selected)
   const set = (patch: Partial<FreeSettings>) => onChange({ ...settings, ...patch })
@@ -127,20 +123,16 @@ export default function Setup({ settings, stats, speed, onChange, onStart, onBac
 
   const combined = settings.mode === 'combined'
   const write = (settings.direction ?? 'read') === 'write'
-  const answers: { v: AnswerMode; title: string; desc: string }[] = write
-    ? [
-        { v: 'type', title: 'Ketik', desc: 'Ketik huruf Jepangnya dengan keyboard Jepang, misalnya “し”.' },
-        { v: 'choice', title: 'Pilihan ganda', desc: 'Pilih satu dari empat huruf Jepang.' },
-        { v: 'mix', title: 'Campur', desc: 'Selang-seling ketik dan pilihan.' },
-      ]
-    : [
-        { v: 'type', title: 'Ketik', desc: 'Tulis romaji, misalnya “shi”.' },
-        { v: 'choice', title: 'Pilihan ganda', desc: 'Pilih satu dari empat bacaan.' },
-        { v: 'mix', title: 'Campur', desc: 'Selang-seling ketik dan pilihan.' },
-      ]
+  const answers: { v: AnswerMode; title: string; desc: string }[] = [
+    { v: 'type', title: 'Ketik', desc: 'Tulis romaji, misalnya “shi”.' },
+    { v: 'choice', title: 'Pilihan ganda', desc: 'Pilih satu dari empat bacaan.' },
+    { v: 'mix', title: 'Campur', desc: 'Selang-seling ketik dan pilihan.' },
+  ]
+  const inputs: { v: WriteInput; title: string; desc: string }[] = [
+    { v: 'tiles', title: 'Pilih huruf', desc: 'Susun jawaban dari kepingan huruf Jepang, tanpa keyboard Jepang. Cocok untuk HP.' },
+    { v: 'keyboard', title: 'Keyboard', desc: 'Ketik huruf Jepangnya langsung, misalnya “し”. Butuh keyboard Jepang (IME).' },
+  ]
   const count = settings.selected.length
-  const [pinned, setPinned] = useState<{ advice: Advice; applied: string[] } | null>(null)
-  const advice = pinned?.advice ?? adviceFor(settings, stats, speed)[0]
 
   return (
     <div className="desk relative min-h-dvh">
@@ -156,21 +148,6 @@ export default function Setup({ settings, stats, speed, onChange, onStart, onBac
           <h1 className="font-display mt-1 text-3xl font-extrabold">Meja Latihan</h1>
           <p className="mt-1 text-sm text-[#cdb88f]">Ikuti empat langkah di bawah, lalu soal muncul acak sampai kamu puas.</p>
         </div>
-
-        {advice && (
-          <div className="mb-8">
-            <AdviceCard
-              advice={advice}
-              applied={pinned?.applied}
-              hint="Aturan baru sudah terpasang. Tekan Mulai latihan di bawah untuk memakainya."
-              onApply={(a) => {
-                onChange(applyAction(settings, a))
-                setPinned((p) => ({ advice: p?.advice ?? advice, applied: [...(p?.applied ?? []), a.label] }))
-              }}
-              onDismiss={pinned ? () => setPinned(null) : undefined}
-            />
-          </div>
-        )}
 
         <div className="relative">
           {/* garis timeline */}
@@ -237,25 +214,39 @@ export default function Setup({ settings, stats, speed, onChange, onStart, onBac
               n={3}
               title="Pilih cara menjawab"
               hint={
-                combined
-                  ? 'Mode gabungan selalu dijawab dengan mengetik.'
-                  : write
-                    ? 'Ketik huruf Jepangnya, atau pilih dari empat pilihan.'
+                write
+                  ? 'Susun dari kepingan huruf, atau ketik dengan keyboard Jepang.'
+                  : combined
+                    ? 'Mode gabungan selalu dijawab dengan mengetik.'
                     : 'Ketik bacaannya, atau pilih dari empat pilihan.'
               }
             >
-              <div role="radiogroup" aria-label="Cara menjawab" className="grid gap-3 sm:grid-cols-3">
-                {answers.map((o) => (
-                  <Choice
-                    key={o.v}
-                    selected={(combined ? 'type' : settings.answer) === o.v}
-                    disabled={combined && o.v !== 'type'}
-                    onClick={() => set({ answer: o.v })}
-                    title={o.title}
-                    desc={o.desc}
-                  />
-                ))}
-              </div>
+              {write ? (
+                <div role="radiogroup" aria-label="Cara menjawab" className="grid gap-3 sm:grid-cols-2">
+                  {inputs.map((o) => (
+                    <Choice
+                      key={o.v}
+                      selected={(settings.input ?? 'tiles') === o.v}
+                      onClick={() => set({ input: o.v })}
+                      title={o.title}
+                      desc={o.desc}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div role="radiogroup" aria-label="Cara menjawab" className="grid gap-3 sm:grid-cols-3">
+                  {answers.map((o) => (
+                    <Choice
+                      key={o.v}
+                      selected={(combined ? 'type' : settings.answer) === o.v}
+                      disabled={combined && o.v !== 'type'}
+                      onClick={() => set({ answer: o.v })}
+                      title={o.title}
+                      desc={o.desc}
+                    />
+                  ))}
+                </div>
+              )}
             </Step>
 
             <Step n={4} title="Pilih huruf yang diuji" hint="Ketuk kepingan untuk memilih. Bisa campur hiragana dan katakana.">

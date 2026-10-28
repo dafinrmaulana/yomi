@@ -63,6 +63,7 @@ function Routes() {
       length: s.length,
       answer: s.mode === 'combined' ? 'type' : s.answer,
       direction: s.direction ?? 'read',
+      input: s.input,
       words: true,
       total: null,
       hearts: false,
@@ -132,7 +133,7 @@ function Routes() {
       />
     )
   else if (path === '/practice')
-    screen = <Setup settings={progress.free} stats={progress.stats} speed={progress.speed} onChange={(free) => patch({ free })} onStart={startFree} onBack={() => back('/missions')} />
+    screen = <Setup settings={progress.free} onChange={(free) => patch({ free })} onStart={startFree} onBack={() => back('/missions')} />
   else if (path === '/write') screen = <Tulis />
   else if (isWrite) screen = <TulisDetail hex={path.slice('/write/'.length)} />
   else if (path === '/review') screen = <Ulang onStart={(c) => startQuiz(c)} />
