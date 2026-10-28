@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { KANA_BY_ID, type Kana } from './kana'
+import { KANA_BY_ID } from './kana'
 import { longestPrefix, matchesSequence } from './romaji'
 
 const first = (chars: string) => [...chars].map((c) => Object.values(KANA_BY_ID).find((k) => k.char === c)!)
