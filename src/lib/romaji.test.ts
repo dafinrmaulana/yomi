@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { KANA_BY_ID } from './kana'
 import { parseKana } from './words'
-import { display, longestPrefix, matchesSequence, romajiAt } from './romaji'
+import { display, longestPrefix, matchesSequence, readChunks, romajiAt } from './romaji'
 
 const first = (chars: string) => [...chars].map((c) => Object.values(KANA_BY_ID).find((k) => k.char === c)!)
 
@@ -79,5 +79,16 @@ describe('tanda hubung', () => {
 
   it('tidak bisa menggantikan huruf yang bukan ー', () => {
     expect(matchesSequence('k-a', first('か'))).toBe(false)
+  })
+})
+
+describe('readChunks', () => {
+  it('ん cukup satu n bila sudah ada rangkaian lain di depannya', () => {
+    expect(matchesSequence('nin', first('にん'))).toBe(true)
+    expect(readChunks('nin', first('にん'))).toEqual({ chunks: ['ni', 'n'], rest: '' })
+  })
+  it('memecah per huruf dan menyisakan ketikan yang belum cocok', () => {
+    expect(readChunks('kax', first('かき'))).toEqual({ chunks: ['ka'], rest: 'x' })
+    expect(readChunks('', first('かき'))).toEqual({ chunks: [], rest: '' })
   })
 })

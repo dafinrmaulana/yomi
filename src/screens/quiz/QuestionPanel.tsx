@@ -1,4 +1,5 @@
 import AnswerBoxes from '../../components/AnswerBoxes'
+import RomajiInput from '../../components/RomajiInput'
 import TileBank from '../../components/TileBank'
 import { isChoiceAnswer, type QuizConfig } from '../../lib/quiz'
 import { KanaPrompt, RomajiPrompt } from './prompts'
@@ -84,6 +85,15 @@ export default function QuestionPanel({ config, session, compact, tiny }: Props)
           picks={session.tilePicks}
           onChange={session.setTilePicks}
           disabled={!idle}
+        />
+      ) : q.type === 'type' && !write ? (
+        <RomajiInput
+          seq={q.seq}
+          value={session.parts[0] ?? ''}
+          onChange={(v) => session.setParts([v])}
+          disabled={!idle}
+          compact={compact}
+          words={q.words}
         />
       ) : q.type === 'type' ? (
         <AnswerBoxes seq={q.seq} values={session.parts} onChange={session.setParts} disabled={!idle} compact={compact} write={write} words={q.words} />

@@ -50,4 +50,27 @@ export function longestPrefix(input: string, seq: Kana[]): number {
   return go(0, 0)
 }
 
-export const display = (seq: Kana[]) => seq.map((_, i) => romajiAt(seq, i)[0]).join(' ')
+/**
+ * Pecah ketikan menurut huruf: potongan teks untuk tiap kana yang sudah terbaca benar dari depan
+ * (pemisah '-' ikut di potongan sebelumnya), plus sisa ketikan yang belum cocok.
+ */
+export function readChunks(input: string, seq: Kana[]): { chunks: string[]; rest: string } {
+  const text = normalize(input)
+  const go = (i: number, pos: number): { chunks: string[]; pos: number } => {
+    let best = { chunks: [] as string[], pos }
+    if (i === seq.length) return best
+    for (const r of romajiAt(seq, i)) {
+      for (const p of after(text, pos)) {
+        if (!text.startsWith(r, p)) continue
+        const end = p + r.length
+        const sub = go(i + 1, end)
+        if (sub.chunks.length + 1 > best.chunks.length) best = { chunks: [text.slice(pos, end), ...sub.chunks], pos: sub.pos }
+      }
+    }
+    return best
+  }
+  const { chunks, pos } = go(0, 0)
+  return { chunks, rest: text.slice(pos) }
+}
+
+export const display =(seq: Kana[]) => seq.map((_, i) => romajiAt(seq, i)[0]).join(' ')
