@@ -53,6 +53,9 @@ export interface Question {
   options: string[]
   /** pembagian rangkaian jadi kata beserta artinya (hanya mode kata nyata) */
   words?: Segment[]
+  /** hanya mode dialog: terjemahan baris, dan posisinya di dalam dialog */
+  translation?: string
+  line?: { speaker: string; no: number; of: number; title: string }
 }
 
 /** batas "cukup cepat" per huruf (ms); mengetik huruf Jepang lewat IME butuh waktu lebih lama */
@@ -90,7 +93,7 @@ export function isChoiceAnswer(q: Question, opt: string, direction: Direction = 
 export function promptRomaji(k: Kana): string {
   if (k.special) return k.romaji[0] // label tetap: “tsu kecil” atau “panjang”
   // huruf yang lebih dulu di daftar (じ, ず) tetap memakai bacaan utamanya
-  const before = ALL_KANA.slice(0, ALL_KANA.indexOf(k))
+  const before = ALL_KANA.slice(0, ALL_KANA.findIndex((o) => o.id === k.id))
   const taken = (r: string) => before.some((o) => o.script === k.script && o.romaji[0] === r)
   if (!taken(k.romaji[0])) return k.romaji[0]
   return k.romaji.find((r) => !taken(r)) ?? k.romaji[0]

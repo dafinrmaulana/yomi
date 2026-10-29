@@ -14,7 +14,7 @@ export function selectedKana(s: FreeSettings) {
 }
 
 /**
- * Pengaturan Latihan Bebas jadi konfigurasi kuis. Aturan yang berlaku di satu tempat: mode gabungan arah baca
+ * Pengaturan Latihan Bebas jadi konfigurasi kuis. Aturan yang berlaku di satu tempat: mode gabungan dan dialog arah baca
  * selalu diketik, kata nyata selalu dipakai, dan arah tulis memakai kepingan kecuali memilih keyboard.
  */
 export function freeConfig(s: FreeSettings): QuizConfig {
@@ -26,7 +26,7 @@ export function freeConfig(s: FreeSettings): QuizConfig {
     review: [],
     mode: s.mode,
     length: s.length,
-    answer: s.mode === 'combined' ? 'type' : s.answer,
+    answer: s.mode === 'single' ? s.answer : 'type',
     direction: s.direction ?? 'read',
     input: s.input,
     words: true,

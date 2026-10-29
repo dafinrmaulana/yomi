@@ -8,6 +8,10 @@ import type { QuizSession } from './useQuizSession'
 
 /** instruksi singkat di atas kartu soal, menurut arah dan jenis jawaban */
 function instruction(config: QuizConfig, q: QuizSession['q'], write: boolean) {
+  if (config.mode === 'dialog') {
+    if (!write) return 'Bacakan kalimat ini'
+    return q.type === 'tiles' ? 'Susun kalimat Jepangnya' : 'Ketik kalimat Jepangnya'
+  }
   if (write) {
     if (q.type === 'choice') return 'Pilih huruf yang benar'
     if (q.type === 'tiles') return 'Susun huruf Jepangnya'
@@ -61,7 +65,7 @@ export default function QuestionPanel({ config, session, compact, tiny }: Props)
         } ${status === 'bad' ? 'animate-shake border-sharin' : status === 'ok' ? 'border-ok' : ''}`}
         style={{ boxShadow: '0 0 60px rgba(214, 40, 57, 0.12) inset' }}
       >
-        {write ? <RomajiPrompt seq={q.seq} /> : <KanaPrompt seq={q.seq} words={q.words} size={promptSize(q.seq.length, compact)} />}
+        {write ? <RomajiPrompt seq={q.seq} words={q.line ? q.words : undefined} /> : <KanaPrompt seq={q.seq} words={q.words} size={promptSize(q.seq.length, compact)} />}
         {xpPop && (
           <span
             key={xpPop.key}
@@ -72,6 +76,19 @@ export default function QuestionPanel({ config, session, compact, tiny }: Props)
           </span>
         )}
       </div>
+
+      {q.line && (
+        <p className={`mt-3 flex items-center gap-2 text-xs font-bold text-[#b9a782] ${tiny ? 'hidden' : ''}`}>
+          <span className="grid size-5 place-items-center rounded-full bg-[#f3e7cf] text-[11px] font-extrabold leading-none text-[#1b1410]">{q.line.speaker}</span>
+          {q.line.title} · {q.line.no}/{q.line.of}
+        </p>
+      )}
+      {q.translation && (
+        // arah tulis: terjemahan jadi petunjuk soal; arah baca: terjemahan baru muncul setelah dijawab
+        <p className={`mt-2 max-w-md px-4 text-center text-sm font-semibold italic text-[#cdb88f] ${tiny ? 'hidden' : write || !idle ? '' : 'invisible'}`}>
+          “{q.translation}”
+        </p>
+      )}
 
       {specialHint(q, write) && (
         <p className={`mt-3 max-w-md px-4 text-center text-xs text-[#b9a782] ${tiny ? 'hidden' : ''}`}>{specialHint(q, write)}</p>

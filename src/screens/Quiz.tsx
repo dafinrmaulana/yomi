@@ -30,7 +30,7 @@ export default function Quiz({ config, stats, speed, mute, onFinish, onExit, onS
   const kb = useKeyboard()
   // Mangekyō berganti tiap permainan
   const [mangekyo] = useState(pickMangekyo)
-  const session = useQuizSession({ config, stats, speed, mute, mangekyo, trackAdvice: !!onApplyAdvice, onFinish })
+  const session = useQuizSession({ config, stats, speed, mute, mangekyo, trackAdvice: !!onApplyAdvice && config.mode !== 'dialog', onFinish })
   const { q, status, answered, answer } = session
 
   // pelajaran misi harus dituntaskan; sesi lain boleh diakhiri kapan saja setelah menjawab
@@ -39,7 +39,9 @@ export default function Quiz({ config, stats, speed, mute, onFinish, onExit, onS
 
   const [confirm, setConfirm] = useState<'exit' | 'mode' | null>(null)
   const exit = () => (answered > 0 ? setConfirm('exit') : onExit())
-  const switchMode = onSwitchMode && (() => (answered > 0 ? setConfirm('mode') : onSwitchMode()))
+  // dialog tidak punya mode lawan untuk bertukar
+  const switchMode =
+    onSwitchMode && config.mode !== 'dialog' ? () => (answered > 0 ? setConfirm('mode') : onSwitchMode()) : undefined
 
   const handleKey = (e: KeyboardEvent) => {
     // Enter saat IME (keyboard Jepang) masih menyusun kata hanya mengonfirmasi konversi

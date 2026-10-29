@@ -1,3 +1,4 @@
+import { eligibleDialogs, type Dialog, type DialogLine } from './dialogs'
 import { ALL_KANA, type Kana } from './kana'
 import { slowMs, type Question, type QuizConfig } from './quiz'
 import { MAX_RETRIES, SEEN_LIMIT, WORD_SHARE } from './tuning'
@@ -135,6 +136,13 @@ const keyOf = (seq: Kana[]) => seq.map((k) => k.id).join()
  */
 type Retry = { seq: Kana[]; words?: Segment[]; due: number }
 
+/** dialog yang sedang berjalan: baris yang belum keluar, dan pemakaian tiap dialog di sesi ini */
+interface DialogState {
+  queue: { dialog: Dialog; line: DialogLine; no: number }[]
+  uses: Map<string, number>
+  last?: string
+}
+
 /**
  * Pembuat soal untuk satu sesi latihan. Semua keadaan yang berubah selama sesi (kocokan kartu, rangkaian yang
  * sudah keluar, antrean pengulangan, pemakaian kata) disimpan di instance ini, bukan di variabel global, dan
@@ -147,6 +155,7 @@ export class QuestionGenerator {
   private wordUses = new WeakMap<QuizConfig, Map<string, number>>()
   private retryQueue = new WeakMap<QuizConfig, Retry[]>()
   private retryTries = new WeakMap<QuizConfig, Map<string, number>>()
+  private dialogs = new WeakMap<QuizConfig, DialogState>()
 
   private draw(pool: Kana[], stats: Stats, speed: Speed, limit: number, prev?: Kana): Kana {
     let deck = this.decks.get(pool)
@@ -197,6 +206,33 @@ export class QuestionGenerator {
     this.retryTries.get(cfg)?.delete(keyOf(q.seq))
   }
 
+  /**
+   * Baris dialog berikutnya. Dialog dipilih dari yang semua hurufnya dipilih pemain; yang paling jarang keluar
+   * didahulukan dan tidak diulang langsung. Satu dialog dimainkan baris demi baris sampai selesai.
+   * Null bila tidak ada dialog yang cocok.
+   */
+  private dialogLine(cfg: QuizConfig): Question | null {
+    const st = this.dialogs.get(cfg) ?? { queue: [], uses: new Map<string, number>() }
+    this.dialogs.set(cfg, st)
+    if (st.queue.length === 0) {
+      const fit = eligibleDialogs([...cfg.pool.map((k) => k.id), ...(cfg.special ?? [])])
+      if (fit.length === 0) return null
+      const least = Math.min(...fit.map((d) => st.uses.get(d.id) ?? 0))
+      let cands = fit.filter((d) => (st.uses.get(d.id) ?? 0) === least)
+      if (cands.length > 1) cands = cands.filter((d) => d.id !== st.last)
+      const dialog = cands[Math.floor(Math.random() * cands.length)]
+      st.uses.set(dialog.id, least + 1)
+      st.last = dialog.id
+      st.queue = dialog.lines.map((line, no) => ({ dialog, line, no }))
+    }
+    const { dialog, line, no } = st.queue.shift()!
+    return {
+      ...combinedQuestion(cfg, line.seq, line.words),
+      translation: line.meaning,
+      line: { speaker: line.speaker, no: no + 1, of: dialog.lines.length, title: dialog.title },
+    }
+  }
+
   /** soal berikutnya; `avoidKey` = kunci soal sebelumnya supaya tidak sama dua kali berturut-turut */
   next(cfg: QuizConfig, stats: Stats, avoidKey?: string, speed: Speed = {}): Question {
     const limit = slowMs(cfg.direction)
@@ -210,9 +246,15 @@ export class QuestionGenerator {
       return k
     }
 
+    if (cfg.mode === 'dialog') {
+      const line = this.dialogLine(cfg)
+      if (line) return line
+    }
+
     const len = cfg.mode === 'single' ? 1 : cfg.length
 
-    if (cfg.mode === 'combined') {
+    // mode dialog tanpa dialog yang cocok jatuh ke rangkaian biasa supaya sesi tidak macet
+    if (cfg.mode !== 'single') {
       // pengulangan yang disengaja: rangkaian yang tadi salah/lambat dan sudah waktunya muncul lagi
       const queue = this.retryQueue.get(cfg)
       if (queue?.length) {

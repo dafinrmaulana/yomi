@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { GROUPS } from './kana'
 import { HISTORY_LIMIT, SPEED_WINDOW } from './tuning'
 
-export type QuizMode = 'single' | 'combined'
+/** single: satu huruf; combined: rangkaian acak; dialog: baris percakapan */
+export type QuizMode = 'single' | 'combined' | 'dialog'
 export type AnswerMode = 'type' | 'choice' | 'mix'
 /** read: huruf Jepang → romaji, write: romaji → huruf Jepang */
 export type Direction = 'read' | 'write'

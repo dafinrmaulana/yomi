@@ -39,7 +39,8 @@ export function useQuizAdvice({ session, stats, speed, onApplyAdvice, canFinish 
         }
       : undefined
 
-  const enabled = !!onApplyAdvice
+  // saran naik level dinilai dari huruf lepas dan rangkaian, bukan dari dialog
+  const enabled = !!onApplyAdvice && settings.mode !== 'dialog'
   const settingsAdvice = enabled ? tracker.advice(settings, stats, speed, dismissed) : undefined
   const advice = milestone ?? settingsAdvice
   const shown = pinned?.advice ?? advice

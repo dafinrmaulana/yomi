@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import Petals from '../components/Petals'
+import { eligibleDialogs } from '../lib/dialogs'
 import { specialIds } from '../lib/free'
 import type { AnswerMode, Direction, FreeSettings, WriteInput } from '../lib/storage'
 import Choice from './setup/Choice'
@@ -16,6 +17,9 @@ interface Props {
 export default function Setup({ settings, onChange, onStart, onBack }: Props) {
   const set = (patch: Partial<FreeSettings>) => onChange({ ...settings, ...patch })
   const combined = settings.mode === 'combined'
+  const dialog = settings.mode === 'dialog'
+  // gabungan dan dialog dijawab dengan mengetik; hanya per huruf yang punya pilihan ganda
+  const sentence = settings.mode !== 'single'
   const write = (settings.direction ?? 'read') === 'write'
   const answers: { v: AnswerMode; title: string; desc: string }[] = [
     { v: 'type', title: 'Ketik', desc: 'Tulis romaji, misalnya “shi”.' },
@@ -29,6 +33,7 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
   // huruf khusus tidak bisa jadi soal sendiri, jadi tidak dihitung sebagai bahan latihan
   const extra = specialIds(settings.selected).length
   const count = settings.selected.length - extra
+  const dialogCount = eligibleDialogs(settings.selected).length
 
   return (
     <div className="desk relative min-h-dvh">
@@ -69,8 +74,8 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
               </div>
             </Step>
 
-            <Step n={2} title="Pilih bentuk soal" hint="Mau berlatih satu huruf, atau rangkaian huruf acak?">
-              <div role="radiogroup" aria-label="Bentuk soal" className="grid gap-3 sm:grid-cols-2">
+            <Step n={2} title="Pilih bentuk soal" hint="Mau berlatih satu huruf, rangkaian huruf acak, atau percakapan pendek?">
+              <div role="radiogroup" aria-label="Bentuk soal" className="grid gap-3 sm:grid-cols-3">
                 <Choice
                   selected={!combined}
                   onClick={() => set({ mode: 'single' })}
@@ -82,6 +87,17 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
                   onClick={() => set({ mode: 'combined' })}
                   title="Gabungan acak"
                   desc="Beberapa huruf acak berurutan, dijawab sekaligus."
+                />
+                <Choice
+                  selected={dialog}
+                  disabled={dialogCount === 0 && !dialog}
+                  onClick={() => set({ mode: 'dialog' })}
+                  title="Dialog"
+                  desc={
+                    dialogCount > 0
+                      ? `Percakapan pendek, dijawab baris demi baris. ${dialogCount} dialog cocok dengan hurufmu.`
+                      : 'Percakapan pendek, dijawab baris demi baris. Belum ada yang cocok dengan hurufmu: pilih lebih banyak huruf di langkah 4, misalnya semua huruf hiragana.'
+                  }
                 />
               </div>
 
@@ -112,8 +128,8 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
               hint={
                 write
                   ? 'Susun dari kepingan huruf, atau ketik dengan keyboard Jepang.'
-                  : combined
-                    ? 'Mode gabungan selalu dijawab dengan mengetik.'
+                  : sentence
+                    ? `Mode ${dialog ? 'dialog' : 'gabungan'} selalu dijawab dengan mengetik.`
                     : 'Ketik bacaannya, atau pilih dari empat pilihan.'
               }
             >
@@ -134,8 +150,8 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
                   {answers.map((o) => (
                     <Choice
                       key={o.v}
-                      selected={(combined ? 'type' : settings.answer) === o.v}
-                      disabled={combined && o.v !== 'type'}
+                      selected={(sentence ? 'type' : settings.answer) === o.v}
+                      disabled={sentence && o.v !== 'type'}
                       onClick={() => set({ answer: o.v })}
                       title={o.title}
                       desc={o.desc}
@@ -156,8 +172,9 @@ export default function Setup({ settings, onChange, onStart, onBack }: Props) {
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
           <p className="text-sm text-[#cdb88f]">
             <b className="text-lg text-bone">{count}</b> huruf dipilih{extra > 0 && ` + ${extra} huruf khusus`}
+            {dialog && ` · ${dialogCount} dialog`}
           </p>
-          <button className="btn btn-red" disabled={count === 0} onClick={onStart}>
+          <button className="btn btn-red" disabled={count === 0 || (dialog && dialogCount === 0)} onClick={onStart}>
             Mulai latihan
           </button>
         </div>

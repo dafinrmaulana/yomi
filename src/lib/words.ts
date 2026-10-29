@@ -11,11 +11,29 @@ export interface Word extends WordEntry {
   ids: string[]
 }
 
-/** urai tulisan kana jadi urutan huruf aplikasi (yoon dua karakter jadi satu huruf); null bila ada karakter asing */
+/** partikel yang dibaca lain dari tulisannya; ditandai "~" di depan hurufnya (わたし~は = watashi wa) */
+const PARTICLE_ROMAJI: Record<string, string[]> = { は: ['wa', 'ha'], を: ['o', 'wo'], へ: ['e', 'he'] }
+
+/**
+ * urai tulisan kana jadi urutan huruf aplikasi (yoon dua karakter jadi satu huruf); null bila ada karakter asing.
+ * "~" di depan は/を/へ menandai partikel: bacaan utamanya wa/o/e, bacaan tulisannya tetap diterima.
+ */
 export function parseKana(text: string): Kana[] | null {
   const chars = [...text]
   const out: Kana[] = []
+  let particle = false
   for (let i = 0; i < chars.length; i++) {
+    if (chars[i] === '~') {
+      particle = true
+      continue
+    }
+    // partikel lain (が, も, に, と…) dibaca sama dengan tulisannya, jadi "~" di depannya tidak berpengaruh
+    if (particle && PARTICLE_ROMAJI[chars[i]]) {
+      out.push({ ...BY_CHAR[chars[i]], romaji: PARTICLE_ROMAJI[chars[i]] })
+      particle = false
+      continue
+    }
+    particle = false
     const pair = chars[i + 1] && SMALL_YOON.has(chars[i + 1]) ? chars[i] + chars[i + 1] : null
     // ー mengikuti skrip huruf sebelumnya; っ/ッ punya skrip masing-masing
     const special = SPECIAL_KANA.find((s) => s.char === chars[i] && (s.char !== 'ー' || s.script === out[out.length - 1]?.script))
